@@ -4,6 +4,10 @@ from discord.ext import commands
 import deep_translator
 from deep_translator import GoogleTranslator, single_detection
 import langcodes
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Utility(commands.GroupCog, name="utility"):
     def __init__(self, bot) -> None:
@@ -48,7 +52,7 @@ class Utility(commands.GroupCog, name="utility"):
         try:
             translator = GoogleTranslator(source='auto', target='en')
             translation = translator.translate(message.content)
-            source_language = single_detection(message.content, api_key='9749cb5e503e0646c3c86dec50cdfabe')
+            source_language = single_detection(message.content, api_key=str(os.getenv('API_KEY')))
             language = langcodes.get(source_language).language_name()
             embed = discord.Embed(title="Translation", description=f"**Original Text:** {message.content}\n**Translated Text:** {translation}\n**Language:** {language}", color=discord.Color.green())
             await interaction.response.send_message(embed=embed)
