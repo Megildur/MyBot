@@ -36,13 +36,13 @@ class MyBot(commands.Bot):
     async def setup_hook(self) -> None:
         print('loading cogs...')
         for filename in os.listdir('bot'):
-            if filename.endswith('.py'):
-                cog_name = filename[:-3]  # Remove the .py extension
+            if filename.endswith('.py') and filename != '__init__.py':
+                cog_name = filename[:-3]
                 await bot.load_extension(f'bot.{cog_name}')
                 print(f'loaded {cog_name}')
         for filename in os.listdir('bot/cogs'):
-            if filename.endswith('.py'):
-                cog_name = filename[:-3]  # Remove the .py extension
+            if filename.endswith('.py') and filename != '__init__.py':
+                cog_name = filename[:-3]
                 await bot.load_extension(f'bot.cogs.{cog_name}')
                 print(f'loaded {cog_name}')
         print('setup complete')
