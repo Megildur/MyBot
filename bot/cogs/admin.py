@@ -148,7 +148,7 @@ class Admin(commands.GroupCog, group_name="admin"):
         embed = discord.Embed(title="Log Channel Set", description=f"The log channel has been set to {channel.mention}", color=discord.Color.green())
         await interaction.response.send_message(embed=embed, ephemeral=True)
         
-async def setup(bot):
+async def setup(bot) -> None:
     admin_cog = Admin(bot)
     await bot.add_cog(admin_cog)
     bot.admin_cog = admin_cog
