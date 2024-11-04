@@ -13,17 +13,14 @@ load_dotenv()
 
 intents = discord.Intents.all()
 
-# Set up logging
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.ERROR)
 
-# Set formatting for the handlers
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
 
-# Get the root logger and add both handlers
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
 logger.addHandler(handler)
@@ -46,7 +43,6 @@ class MyBot(commands.Bot):
                 await bot.load_extension(f'bot.cogs.{cog_name}')
                 print(f'loaded {cog_name}')
         print('setup complete')
-                
 
 bot = MyBot()
 

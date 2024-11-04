@@ -6,7 +6,7 @@ from discord import app_commands
 import random
 import asyncio
 
-allowed_guilds = [1293647067998326936]
+allowed_guilds = [1293647067998326936, 1262457887930716290]
 
 class SyncCog(commands.Cog):
     def __init__(self, bot) -> None:
