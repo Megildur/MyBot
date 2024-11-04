@@ -16,6 +16,30 @@ class Moderation(commands.GroupCog, group_name="mod"):
 
     async def cog_load(self) -> None:
         await self.initialize_database()
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = self.tree_on_error
+
+    async def cog_unload(self) -> None:
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
+
+    async def tree_on_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError
+    ) -> None:
+        if isinstance(error, app_commands.CommandOnCooldown):
+            retry_after = int(error.retry_after)
+            embed = discord.Embed(
+                title="Command Cooldown",
+                description=f"This command is on cooldown. Please try again in {retry_after} seconds.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            print(f"An error occurred: {error}")
+            await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
 
     def access_log_channel_id(self, guild_id) -> Optional[int]:
         admin_cog = self.bot.admin_cog
@@ -36,7 +60,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
             await db.commit()
 
     @tasks.loop(seconds=60)
-    async def check_expired_actions(self):
+    async def check_expired_actions(self) -> None:
         while True:
             current_time = datetime.utcnow()
             async with aiosqlite.connect(persistent_data) as db:
@@ -94,6 +118,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
     @app_commands.command(name="kick", description="Kick a member from the server")
     @app_commands.default_permissions(kick_members=True)
     @app_commands.describe(member="The member to kick", reason="The reason for kicking the member")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def kick(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided.") -> None:
         try:
             if can_moderate(interaction.user, member):
@@ -121,6 +146,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
     @app_commands.command(name="ban", description="Ban a member from the server")
     @app_commands.default_permissions(ban_members=True)
     @app_commands.describe(member="The member to ban", reason="The reason for banning the member", duration="The duration of the ban (e.g., 1d, 2h, 30m)")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def ban(self, interaction: discord.Interaction, member: discord.Member, duration: Optional[str] = None, reason: str = "No reason provided.") -> None:
         try:
             if can_moderate(interaction.user, member):
@@ -156,6 +182,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
     @app_commands.command(name="unban", description="Unban a member from the server")
     @app_commands.default_permissions(ban_members=True)
     @app_commands.describe(user_id="The user ID of the member to unban")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def unban(self, interaction: discord.Interaction, user_id: str, reason: Optional[str] = "No reason provided.") -> None:
         guild = interaction.guild
         try:
@@ -234,6 +261,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
     @app_commands.command(name="unmute", description="Unmute a member in the server")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.describe(member="The member to unmute")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def unmute(self, interaction: discord.Interaction, member: discord.Member) -> None:
         try:
             await interaction.response.defer()
@@ -271,6 +299,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
     @app_commands.command(name="warn", description="Warn a member")
     @app_commands.default_permissions(moderate_members=True)
     @app_commands.describe(member="The member to warn", reason="The reason for warning the member")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def warn(self, interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided.") -> None:
         try:
             if can_moderate(interaction.user, member):
@@ -291,6 +320,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
     @app_commands.command(name="purge", description="Delete a specified number of messages from a channel")
     @app_commands.default_permissions(manage_messages=True)
     @app_commands.describe(amount="The number of messages to delete")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def purge(self, interaction: discord.Interaction, amount: app_commands.Range[int, 1, 1000]) -> None:
         try:
             await interaction.response.defer(ephemeral=True)
@@ -322,17 +352,20 @@ class Moderation(commands.GroupCog, group_name="mod"):
 
     @app_commands.command(name="lock_channel", description="Lock a channel")
     @app_commands.default_permissions(manage_channels=True)
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def lock_channel(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None) -> None:
         pass
 
     @app_commands.command(name="unlock_channel", description="Unlock a channel")
     @app_commands.default_permissions(manage_channels=True)
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def unlock_channel(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None) -> None:
         pass
 
     @app_commands.command(name="addrole", description="Add a role to a member")
     @app_commands.default_permissions(manage_roles=True)
     @app_commands.describe(member="The member to add the role to", role="The role to add")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def addrole(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role) -> None:
         try:
             if can_moderate_roles(interaction.user, role):
@@ -354,6 +387,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
     @app_commands.command(name="removerole", description="Remove a role from a member")
     @app_commands.default_permissions(manage_roles=True)
     @app_commands.describe(member="The member to remove the role from", role="The role to remove")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def removerole(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role) -> None:
         try:
             if can_moderate_roles(interaction.user, role):
@@ -378,6 +412,7 @@ class Moderation(commands.GroupCog, group_name="mod"):
     
     @app_commands.command(name="lockdown_server", description="Lockdown the server")
     @app_commands.default_permissions(manage_channels=True)
+    @app_commands.checks.cooldown(1, 5, key=lambda i: (i.user.id))
     async def lockdown_server(self, interaction: discord.Interaction, action: Literal["lock", "unlock"]):
         pass
 

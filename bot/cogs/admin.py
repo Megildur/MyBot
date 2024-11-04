@@ -18,11 +18,37 @@ class Admin(commands.GroupCog, group_name="admin"):
     async def cog_load(self) -> None:
         await self.load_message_info()
         await self.load_log_channel()
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = self.tree_on_error
 
     async def cog_unload(self) -> None:
         status = "Bot is offline"
         await self.update_status(status)
         self.update_ping.cancel()
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
+
+    async def tree_on_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError
+    ) -> None:
+        if isinstance(error, app_commands.CommandOnCooldown):
+            retry_after = int(error.retry_after)
+            if retry_after < 60:
+                retry_after = f"{retry_after} seconds"
+            else:
+                retry_after = f"{retry_after // 60} minutes"
+            embed = discord.Embed(
+                title="Command Cooldown",
+                description=f"This command is on cooldown. Please try again in {retry_after}.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            print(f"An error occurred: {error}")
+            await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
 
     async def update_status(self, status) -> None:
         for guild_id in self.ping_channel_id.keys():
@@ -129,6 +155,7 @@ class Admin(commands.GroupCog, group_name="admin"):
 
     @app_commands.command(name="ping", description="Set the ping message")
     @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.cooldown(1, 300, key=lambda i: (i.guild_id, i.user.id))
     async def ping(self, interaction: discord.Interaction) -> None:
         guild_id = interaction.guild_id
         embed = self.create_ping_embed(interaction)
@@ -141,6 +168,7 @@ class Admin(commands.GroupCog, group_name="admin"):
     @app_commands.command(name="setlogchannel", description="Set the log channel")
     @app_commands.default_permissions(administrator=True)
     @app_commands.describe(channel="The channel to set as the log channel for moderation actions")
+    @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
     async def setlogchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         guild_id = interaction.guild_id
         self.log_channel_id[guild_id] = channel.id

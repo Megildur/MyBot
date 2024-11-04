@@ -18,7 +18,7 @@ class Utility(commands.GroupCog, name="utility"):
         )
         self.bot.tree.add_command(self.ctx_menu)
 
-    async def cog_load(self):
+    async def cog_load(self) -> None:
         tree = self.bot.tree
         self._old_tree_error = tree.on_error
         tree.on_error = self.tree_on_error
@@ -32,7 +32,7 @@ class Utility(commands.GroupCog, name="utility"):
         self,
         interaction: discord.Interaction,
         error: app_commands.AppCommandError
-    ):
+    ) -> None:
         if isinstance(error, app_commands.CommandOnCooldown):
             retry_after = int(error.retry_after)
             embed = discord.Embed(
