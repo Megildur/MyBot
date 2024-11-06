@@ -144,7 +144,7 @@ class Admin(commands.GroupCog, group_name="admin"):
                             await msg.edit(embed=embed)
                     except discord.NotFound:
                         pass
-            await asyncio.sleep(5)
+            await asyncio.sleep(2)
 
     @update_ping.before_loop
     async def before_update_ping(self):
