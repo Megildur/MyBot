@@ -1,6 +1,7 @@
 import discord
-from typing import Optional
+from typing import Optional, List
 import re
+import asyncio
 
 async def mod_build_embed(action: str, member: discord.Member, moderator: discord.Member, reason: str = None, duration: Optional[str] = None) -> discord.Embed:
     embed = discord.Embed(title=f"Moderator Action: {action}", color=discord.Color.red(), timestamp=discord.utils.utcnow())
@@ -47,3 +48,18 @@ async def get_or_create_mute_role(guild: discord.Guild) -> discord.Role:
         for channel in guild.channels:
             await channel.set_permissions(mute_role, send_messages=False, speak=False)
     return mute_role
+
+def check_bot_permissions(channel: discord.abc.GuildChannel, required_permissions: List[str]) -> List[str]:
+    bot_permissions = channel.permissions_for(channel.guild.me)
+    missing_permissions = [
+        perm for perm in required_permissions 
+        if not getattr(bot_permissions, perm, False)
+    ]
+    return missing_permissions
+
+async def bot_has_permission(interaction: discord.Interaction, permission: str) -> bool:
+    if interaction.guild is None:
+        return False
+    bot_member = interaction.guild.me
+    bot_permissions = bot_member.guild_permissions
+    return getattr(bot_permissions, permission, False)
