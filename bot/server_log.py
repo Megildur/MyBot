@@ -15,8 +15,7 @@ class ServerJoinLogger(commands.Cog):
         self.handler = logging.FileHandler(filename="bot_server_joins.log", encoding="utf-8", mode="a")
         self.handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
         self.logger.addHandler(self.handler)
-        self.session = aiohttp.ClientSession()  # Reuse session
-        print('API Request Logger cog is loaded')
+        self.session = aiohttp.ClientSession()
             
     async def send_webhook_message(self, webhook_url, message):
         data = {"content": message}
@@ -43,7 +42,7 @@ class ServerJoinLogger(commands.Cog):
         message = f"Left server: {guild.name} ({guild.id})"
         await self.send_webhook_message(webhook_url, message)
 
-    async def cog_unload(self):  # Cleanup for session
+    async def cog_unload(self):
         await self.session.close()
 
 async def setup(bot):
