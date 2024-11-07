@@ -8,6 +8,7 @@ import os
 import logging
 import deep_translator
 import langcodes
+import easy_pil
 
 load_dotenv()
 
