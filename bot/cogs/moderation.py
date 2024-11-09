@@ -14,10 +14,10 @@ persistent_data = "data/persistent_data.db"
 class Moderation(commands.GroupCog, group_name="mod"):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self.check_expired_actions.start()
 
     async def cog_load(self) -> None:
         await self.initialize_database()
+        self.check_expired_actions.start()
         tree = self.bot.tree
         self._old_tree_error = tree.on_error
         tree.on_error = self.tree_on_error
