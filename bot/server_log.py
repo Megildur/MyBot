@@ -21,9 +21,7 @@ class ServerJoinLogger(commands.Cog):
         data = {"content": message}
         try:
             async with self.session.post(webhook_url, json=data) as response:
-                if response.status != 200:
-                    self.logger.error(f"Error sending webhook message: {response.status} {response.reason}")
-                else:
+                if response.status in {200, 204}:
                     self.logger.info("Webhook message sent successfully")
         except Exception as e:
             self.logger.error(f"Exception occurred: {str(e)}")
@@ -31,14 +29,14 @@ class ServerJoinLogger(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
         self.logger.info(f"Guild Join: {guild.name} ({guild.id})")
-        webhook_url = str(os.getenv('WEBHOOK_URL'))
+        webhook_url = str(os.getenv('BOT_WEBHOOK_URL'))
         message = f"Joined server: {guild.name} ({guild.id})"
         await self.send_webhook_message(webhook_url, message)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
         self.logger.info(f"Guild Remove: {guild.name} ({guild.id})")
-        webhook_url = str(os.getenv('WEBHOOK_URL'))
+        webhook_url = str(os.getenv('BOT_WEBHOOK_URL'))
         message = f"Left server: {guild.name} ({guild.id})"
         await self.send_webhook_message(webhook_url, message)
 
