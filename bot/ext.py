@@ -48,19 +48,17 @@ class Extensions(commands.Cog):
         not_found = []
         failed = []
         for filename in os.listdir('bot/cogs'):
-            if filename.endswith('.py'):
-                cog_name = filename[:-3]  # Remove the .py extension
+            if filename.endswith('.py') and filename != '__init__.py':
+                cog_name = filename[:-3] 
                 try:
                     await self.bot.reload_extension(f'bot.cogs.{cog_name}')
                     reloaded_cogs.append(f'{cog_name}')
                 except commands.ExtensionNotLoaded:
-                    await self.bot.load_extension(f'cogs.{cog_name}')
+                    await self.bot.load_extension(f'bot.cogs.{cog_name}')
                     loaded.append(f'{cog_name}')
                 except commands.ExtensionNotFound:
-                    await ctx.send(f"Extension not found: {cog_name}")
                     not_found.append(f'{cog_name}')
                 except commands.ExtensionFailed:
-                    await ctx.send(f"Extension failed to load: {cog_name}")
                     failed.append(f'{cog_name}')
         if reloaded_cogs:
             await ctx.send(f'Reloaded cogs: {", ".join(reloaded_cogs)}')
