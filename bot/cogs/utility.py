@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import aiosqlite
 import asyncio
 from datetime import datetime, timedelta
+import uuid
 
 load_dotenv()
 
@@ -51,30 +52,32 @@ class Utility(commands.GroupCog, name="utility"):
             print(f"An error occurred: {error}")
             await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
 
-    async def load_reminders(self):
+    async def load_reminders(self) -> None:
         async with aiosqlite.connect(reminders) as db:
             await db.execute('''
                 CREATE TABLE IF NOT EXISTS reminders (
-                    user_id INTEGER,
                     guild_id INTEGER,
+                    user_id INTEGER,
                     channel_id INTEGER,
                     reminder TEXT,
                     remind_at TIMESTAMP
+                    id TEXT,
+                    PRIMARY KEY (guild_id, user_id, id)
                 )
             ''')
             await db.commit()
-            async with db.execute("SELECT user_id, guild_id, channel_id, reminder, remind_at FROM reminders") as cursor:
+            async with db.execute("SELECT guild_id, user_id, channel_id, reminder, remind_at, id FROM reminders") as cursor:
                 rows = await cursor.fetchall()
                 for row in rows:
-                    user_id, guild_id, channel_id, reminder, remind_at = row
+                    user_id, guild_id, channel_id, reminder, remind_at, id = row
                     remind_at = datetime.strptime(remind_at, '%Y-%m-%d %H:%M:%S')
                     delay = (remind_at - datetime.now()).total_seconds()
                     if delay > 0:
-                        self.bot.loop.create_task(self.send_reminder(user_id, guild_id, channel_id, reminder, delay))
+                        self.bot.loop.create_task(self.send_reminder(user_id, guild_id, channel_id, reminder, delay, id))
                     else:
-                        self.bot.loop.create_task(self.send_reminder(user_id, guild_id, channel_id, reminder, 0))
+                        self.bot.loop.create_task(self.send_reminder(user_id, guild_id, channel_id, reminder, 0, id))
 
-    async def send_reminder(self, user_id, guild_id, channel_id, reminder, delay):
+    async def send_reminder(self, user_id, guild_id, channel_id, reminder, delay, id) -> None:
         await asyncio.sleep(delay)
         guild = self.bot.get_guild(guild_id)
         channel = guild.get_channel(channel_id)
@@ -89,8 +92,8 @@ class Utility(commands.GroupCog, name="utility"):
             embed.set_thumbnail(url=user.avatar.url)
             await channel.send(f"{user.mention}", embed=embed)
         async with aiosqlite.connect(reminders) as db:
-            await db.execute("DELETE FROM reminders WHERE user_id = ? AND guild_id = ? AND channel_id = ? AND reminder = ?",
-                             (user_id, guild_id, channel_id, reminder))
+            await db.execute("DELETE FROM reminders WHERE guild_id = ? AND user_id = ? AND channel_id = ? AND reminder = ? and id = ?",
+                             (user_id, guild_id, channel_id, reminder, id))
             await db.commit()
 
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -108,6 +111,8 @@ class Utility(commands.GroupCog, name="utility"):
             print(e)
             embed = discord.Embed(title="Translation Error", description=f"An error occurred while translating the message.\nException: {e}", color=discord.Color.red())
             await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    reminder = app_commands.Group(name="reminder", description="Commands for reminders")
 
     @app_commands.command(name="member_count", description="Get the total member count of the server")
     @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
@@ -130,10 +135,12 @@ class Utility(commands.GroupCog, name="utility"):
         embed.set_thumbnail(url=self.bot.user.avatar.url)
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="reminder", description="Set a reminder")
+    @reminder.command(name="add", description="Set a reminder")
     @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
-    async def reminder(self, interaction: discord.Interaction, time: str, *, reminder: str) -> None:
+    @app_commands.describe(reminder="The reminder to set", time="The time for the reminder (e.g., 1d, 3h or 30m)")
+    async def reminder_add(self, interaction: discord.Interaction, time: str, *, reminder: str) -> None:
         try:
+            reminder_id = str(uuid.uuid4())
             time_units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
             time_value = int(time[:-1])
             time_unit = time[-1]
@@ -145,12 +152,55 @@ class Utility(commands.GroupCog, name="utility"):
             embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
             await interaction.response.send_message(embed=embed)
             async with aiosqlite.connect(reminders) as db:
-                await db.execute("INSERT INTO reminders (user_id, guild_id, channel_id, reminder, remind_at) VALUES (?, ?, ?, ?, ?)",
-                                (interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, remind_at.strftime('%Y-%m-%d %H:%M:%S')))
+                await db.execute("INSERT INTO reminders (guild_id, user_id, channel_id, reminder, remind_at, id) VALUES (?, ?, ?, ?, ?, ?)",
+                                (interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, remind_at.strftime('%Y-%m-%d %H:%M:%S'), reminder_id))
                 await db.commit()
-            self.bot.loop.create_task(self.send_reminder(interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, reminder_time))
+            self.bot.loop.create_task(self.send_reminder(interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, reminder_time, reminder_id))
         except ValueError as e:
             await interaction.response.send_message(str(e), ephemeral=True)
+
+    @reminder.command(name="list", description="List all your reminders")
+    @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
+    async def reminder_list(self, interaction: discord.Interaction) -> None:
+        async with aiosqlite.connect(reminders) as db:
+            async with db.execute("SELECT reminder, remind_at, id FROM reminders WHERE guild_id = ? AND user_id = ?", (interaction.guild_id, interaction.user.id)) as cursor:
+                rows = await cursor.fetchall()
+                if not rows:
+                    embed = discord.Embed(title="No Reminders Set", description="You have no reminders set.", color=discord.Color.green())
+                    embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+                    await interaction.response.send_message(embed=embed)
+                    return
+                embed = discord.Embed(title="Your Reminders", color=discord.Color.green())
+                for row in rows:
+                    reminder, remind_at, id = row
+                    remind_at = datetime.strptime(remind_at, '%Y-%m-%d %H:%M:%S')
+                    time_left = remind_at - datetime.now()
+                    time_left_str = str(time_left).split('.')[0]
+                    embed.add_field(name=f"Reminder ID: {id}", value=f"Reminder: {reminder}\nTime Left: {time_left_str}", inline=False)
+                embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+                await interaction.response.send_message(embed=embed)
+
+    @reminder.command(name="delete", description="Delete a reminder")
+    @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
+    @app_commands.describe(id="The ID of the reminder to delete")
+    async def reminder_delete(self, interaction: discord.Interaction, id: str) -> None:
+        async with aiosqlite.connect(reminders) as db:
+            async with db.execute("SELECT reminder, remind_at FROM reminders WHERE guild_id = ? AND user_id = ? AND id = ?", (interaction.guild_id, interaction.user.id, id)) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    embed = discord.Embed(title="Reminder Not Found", description=f"No reminder found with ID {id}.", color=discord.Color.red())
+                    embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+                    await interaction.response.send_message(embed=embed)
+                    return
+                reminder, remind_at = row
+                remind_at = datetime.strptime(remind_at, '%Y-%m-%d %H:%M:%S')
+                time_left = remind_at - datetime.now()
+                time_left_str = str(time_left).split('.')[0]
+                embed = discord.Embed(title="Reminder Deleted", description=f"I have deleted your reminder '{reminder}' that was set {time_left_str} ago.", color=discord.Color.green())
+            await db.execute("DELETE FROM reminders WHERE guild_id = ? AND user_id = ? AND id = ?", (interaction.guild_id, interaction.user.id, id))
+            await db.commit()
+        embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot) -> None:
     await bot.add_cog(Utility(bot))
