@@ -60,7 +60,7 @@ class Utility(commands.GroupCog, name="utility"):
                     user_id INTEGER,
                     channel_id INTEGER,
                     reminder TEXT,
-                    remind_at TIMESTAMP
+                    remind_at TIMESTAMP,
                     id TEXT,
                     PRIMARY KEY (guild_id, user_id, id)
                 )
