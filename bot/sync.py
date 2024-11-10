@@ -24,6 +24,7 @@ class SyncCog(commands.Cog):
         spotify_group = discord.utils.get(self.bot.tree.get_commands(), name='spotify')
         utility_group = discord.utils.get(self.bot.tree.get_commands(), name='utility')
         welcomer = discord.utils.get(self.bot.tree.get_commands(), name='welcomer')
+        join_to_create = discord.utils.get(self.bot.tree.get_commands(), name='join_to_create')
         if mod_group:
             mod_commands = [cmd.name for cmd in mod_group.commands]
             print(f'Synced mod commands: {mod_commands}')
@@ -49,6 +50,11 @@ class SyncCog(commands.Cog):
             print(f'Synced welcomer commands: {welcomer_commands}')
         else:
             print('Welcomer group not found')
+        if join_to_create:
+            join_to_create_commands = [cmd.name for cmd in join_to_create.commands]
+            print(f'Synced join to create commands: {join_to_create_commands}')
+        else:
+            print('Join to create group not found')
         embed = discord.Embed(title='Sync Complete', description='The bot has been synced successfully.', color=discord.Color.green())
         embed.add_field(name='**SYNCED COMMANDS**', value=f"Synced {len(synced)} command groups")
         embed.add_field(name='**GROUPS SYNCED**', value=f"Synced commands: {', '.join(all_commands)}")
@@ -62,6 +68,8 @@ class SyncCog(commands.Cog):
             embed.add_field(name=f"{len(utility_commands)} UTILITY COMMANDS SYNCED", value=f"Synced commands: {', '.join(utility_commands)}")
         if welcomer:
             embed.add_field(name=f"{len(welcomer_commands)} WELCOMER COMMANDS SYNCED", value=f"Synced commands: {', '.join(welcomer_commands)}")
+        if join_to_create:
+            embed.add_field(name=f"{len(join_to_create_commands)} JOIN TO CREATE COMMANDS SYNCED", value=f"Synced commands: {', '.join(join_to_create_commands)}")
         await ctx.send(embed=embed)
             
     @commands.command(name='syncg', description='Syncs the bot', hidden=True)
