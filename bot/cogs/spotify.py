@@ -4,20 +4,18 @@ from discord import app_commands
 from discord import Spotify, Activity, ActivityType
 from typing import Optional
 
-class Spotify(commands.GroupCog, name="spotify"):
+class SpotifyCog(commands.GroupCog, name="spotify"):
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(name="now_playing", description="Shows the currently playing song for a user. Defaults to user using command. (Spotify only)")
     async def now_playing(self, interaction: discord.Interaction, add_a_message: Optional[str] = None, user: discord.Member = None):
+        guild = interaction.guild
         if user is None:
-            guild = interaction.guild
             user = guild.get_member(interaction.user.id)
         else:
-            guild = interaction.guild
             user = guild.get_member(user.id)
         spotify_result = next((activity for activity in user.activities if isinstance(activity, Spotify)), None)
-
         if spotify_result is None:
             await interaction.response.send_message(f"{user.mention} is not listening to Spotify.", ephemeral=True)
             return
@@ -34,6 +32,6 @@ class Spotify(commands.GroupCog, name="spotify"):
             await interaction.response.send_message(embed=embed)
 
 async def setup(bot):
-    await bot.add_cog(Spotify(bot))
+    await bot.add_cog(SpotifyCog(bot))
 
    
