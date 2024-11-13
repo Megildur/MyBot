@@ -7,7 +7,7 @@ from bot.utils.mod_helpers import bot_has_permission
 
 jtc = "data/jtc.db"
 
-class JoinToCreateCog(commands.GroupCog, name="jtc"):
+class JoinToCreateCog(commands.GroupCog, group_name="join_to_create"):
     def __init__(self, bot) -> None:
         self.bot = bot
         self.created = {}
@@ -38,7 +38,7 @@ class JoinToCreateCog(commands.GroupCog, name="jtc"):
         name='add', 
         description='Create a join to create channel'
     )
-    @app_commands.describe(channel_catagory='The catagory to create the channel in', create_new_channel='Name to give new join ti create channel', use_existing_channel='Use an existing channel instead of creating a new one')
+    @app_commands.describe(channel_category='The catagory to create the channel in', create_new_channel='Name to give new join ti create channel', use_existing_channel='Use an existing channel instead of creating a new one')
     @app_commands.default_permissions(manage_channels=True)
     async def join_to_create_create(
         self, 

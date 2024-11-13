@@ -25,6 +25,7 @@ class SyncCog(commands.Cog):
         utility_group = discord.utils.get(self.bot.tree.get_commands(), name='utility')
         welcomer = discord.utils.get(self.bot.tree.get_commands(), name='welcomer')
         join_to_create = discord.utils.get(self.bot.tree.get_commands(), name='join_to_create')
+        media_only = discord.utils.get(self.bot.tree.get_commands(), name='media_only')
         if mod_group:
             mod_commands = [cmd.name for cmd in mod_group.commands]
             print(f'Synced mod commands: {mod_commands}')
@@ -55,6 +56,11 @@ class SyncCog(commands.Cog):
             print(f'Synced join to create commands: {join_to_create_commands}')
         else:
             print('Join to create group not found')
+        if media_only:
+            media_only_commands = [cmd.name for cmd in media_only.commands]
+            print(f'Synced media only commands: {media_only_commands}')
+        else:
+            print('Media only group not found')
         embed = discord.Embed(title='Sync Complete', description='The bot has been synced successfully.', color=discord.Color.green())
         embed.add_field(name='**SYNCED COMMANDS**', value=f"Synced {len(synced)} command groups")
         embed.add_field(name='**GROUPS SYNCED**', value=f"Synced commands: {', '.join(all_commands)}")
@@ -70,6 +76,8 @@ class SyncCog(commands.Cog):
             embed.add_field(name=f"{len(welcomer_commands)} WELCOMER COMMANDS SYNCED", value=f"Synced commands: {', '.join(welcomer_commands)}")
         if join_to_create:
             embed.add_field(name=f"{len(join_to_create_commands)} JOIN TO CREATE COMMANDS SYNCED", value=f"Synced commands: {', '.join(join_to_create_commands)}")
+        if media_only:
+            embed.add_field(name=f"{len(media_only_commands)} MEDIA ONLY COMMANDS SYNCED", value=f"Synced commands: {', '.join(media_only_commands)}")
         await ctx.send(embed=embed)
             
     @commands.command(name='syncg', description='Syncs the bot', hidden=True)
