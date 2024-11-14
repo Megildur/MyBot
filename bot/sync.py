@@ -101,11 +101,11 @@ class SyncCog(commands.Cog):
     async def cycle(self):
         while True:
             presences = [
-    discord.Activity(type=discord.ActivityType.listening, name="your commands"),
-    discord.Activity(type=discord.ActivityType.watching, name="your messages"),
-    discord.Activity(type=discord.ActivityType.listening, name=f"to {len(self.bot.guilds)} servers"),
-    discord.Activity(type=discord.ActivityType.listening, name="your messages"),
-    discord.Activity(type=discord.ActivityType.watching, name=f"over {len(self.bot.guilds)} servers"),
+                discord.Activity(type=discord.ActivityType.listening, name="your commands"),
+                discord.Activity(type=discord.ActivityType.watching, name="your messages"),
+                discord.Activity(type=discord.ActivityType.listening, name=f"to {len(self.bot.guilds)} servers"),
+                discord.Activity(type=discord.ActivityType.listening, name="your messages"),
+                ndiscord.Activity(type=discord.ActivityType.watching, name=f"over {len(self.bot.guilds)} servers"),
                 discord.Activity(type=discord.ActivityType.listening, name="your messages"),
                 discord.Activity(type=discord.ActivityType.watching, name=f"over {len(self.bot.users)} users"),
                 discord.Activity(type=discord.ActivityType.listening, name=f"{len(self.bot.users)} users")
