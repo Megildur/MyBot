@@ -61,49 +61,68 @@ class Moderation(commands.GroupCog, group_name="mod"):
             """)
             await db.commit()
 
-    @tasks.loop(seconds=60)
+    @tasks.loop()
     async def check_expired_actions(self) -> None:
-        while True:
-            current_time = datetime.utcnow()
-            async with aiosqlite.connect(persistent_data) as db:
-                async with db.execute(
-                    "SELECT user_id, guild_id, action_type FROM temporary_actions WHERE expires_at <= ?", (current_time,)
-                ) as cursor:
-                    rows = await cursor.fetchall()
-                    for row in rows:
-                        user_id, guild_id, action_type = row
+        
+        current_time = datetime.utcnow()
+        async with aiosqlite.connect(persistent_data) as db:
+            async with db.execute(
+                "SELECT user_id, guild_id, action_type FROM temporary_actions WHERE expires_at <= ?", (current_time,)
+            ) as cursor:
+                rows = await cursor.fetchall()
+                if rows:
+                    for user_id, guild_id, action_type in rows:
                         guild = self.bot.get_guild(guild_id)
-                        if guild:
-                            member = guild.get_member(user_id)
-                            if action_type == 'mute' and member:
-                                mute_role = discord.utils.get(guild.roles, name="Muted")
-                                if mute_role and mute_role in member.roles:
-                                    await member.remove_roles(mute_role)
-                                    log_channel_id = self.access_log_channel_id(guild_id)
-                                    if log_channel_id:
-                                        log_channel = guild.get_channel(log_channel_id)
-                                        if log_channel:
-                                            embed = await mod_build_embed("Unmute", member, self.bot.user, f"Mute duration expired for user")
-                                            await log_channel.send(embed=embed)
-                                            await moderation_log(guild, member, "unmute", "Mute duration expired for user", self.bot.user)
-                            elif action_type == 'ban':
-                                user_unban = discord.Object(user_id)
-                                user = await self.bot.fetch_user(user_id)
-                                await guild.unban(user_unban)
-                                log_channel_id = self.access_log_channel_id(guild_id)
-                                if log_channel_id:
-                                    log_channel = guild.get_channel(log_channel_id)
-                                    if log_channel:
-                                        embed = await mod_build_embed("Unban", user, self.bot.user, f"Ban duration expired for user")
-                                        await log_channel.send(embed=embed)
-                                        await moderation_log(guild, user, "unban", "Ban duration expired for user", self.bot.user)
+                        if not guild:
+                            continue
+                            
+                        if action_type == 'mute':
+                            await self.handle_unmute_action(guild, user_id)
+                        elif action_type == 'ban':
+                            await self.handle_unban_action(guild, user_id)
                         await db.execute(
                             "DELETE FROM temporary_actions WHERE user_id = ? AND guild_id = ? AND action_type = ?",
                             (user_id, guild_id, action_type)
                         )
                         await db.commit()
-        
+            async with db.execute(
+                "SELECT user_id, guild_id, action_type, expires_at FROM temporary_actions ORDER BY expires_at LIMIT 1"
+            ) as cursor:
+                next_task = await cursor.fetchone()
+                if next_task is None:
+                    self.check_expired_actions.stop()
+                await discord.utils.sleep_until(next_task[3])
 
+    @check_expired_actions.before_loop
+    async def before_check_expired_actions(self) -> None:
+        await self.bot.wait_until_ready()
+
+    async def handle_unmute_action(self, guild, user_id):
+        member = guild.get_member(user_id)
+        if member:
+            mute_role = discord.utils.get(guild.roles, name="Muted")
+            if mute_role in member.roles:
+                await member.remove_roles(mute_role)
+                await self.log_action(guild, member, "Unmute", "Mute duration expired for user")
+                
+    async def handle_unban_action(self, guild, user_id):
+        user_unban = discord.Object(user_id)
+        try:
+            await guild.unban(user_unban)
+            user = await self.bot.fetch_user(user_id)
+            await self.log_action(guild, user, "Unban", "Ban duration expired for user")
+        except discord.NotFound:
+            pass
+
+    async def log_action(self, guild, user, action, reason):
+        log_channel_id = self.access_log_channel_id(guild.id)
+        if log_channel_id:
+            log_channel = guild.get_channel(log_channel_id)
+            if log_channel:
+                embed = await mod_build_embed(action, user, self.bot.user, reason)
+                await log_channel.send(embed=embed)
+        await moderation_log(guild, user, "unmute", "Mute duration expired for user", self.bot.user)
+        
     async def save_temporary_action(self, user_id, guild_id, action_type, duration_minutes) -> None:
         expiration_time = discord.utils.utcnow() + timedelta(minutes=duration_minutes)
         async with aiosqlite.connect(persistent_data) as db:
@@ -173,6 +192,10 @@ class Moderation(commands.GroupCog, group_name="mod"):
             if can_moderate(interaction.user, member):
                 if duration != None:
                     duration_minutes = await self.parse_temporary_action(member.id, interaction.guild_id, 'ban', duration)
+                    if duration_minutes is None:
+                        embed = discord.Embed(title="Error", description="Invalid duration format. Please use a valid format like 1d, 2h, 30m, or 1h30m.", color=discord.Color.red())
+                        await interaction.followup.send(embed=embed, ephemeral=True)
+                        return
                     await self.save_temporary_action(member.id, interaction.guild_id, 'ban', duration_minutes)
                     expiration = discord.utils.utcnow() + timedelta(minutes=duration_minutes)
                     experation_time = int(expiration.timestamp())
@@ -182,6 +205,10 @@ class Moderation(commands.GroupCog, group_name="mod"):
                     await self.send_mod_message(interaction, member, "Ban", reason, expiration_time_str)
                 else:
                     await self.send_mod_message(interaction, member, "Ban", reason)
+                if self.check_expired_actions.is_running():
+                    self.check_expired_actions.restart()
+                else:
+                    self.check_expired_actions.start()
             else:
                 embed = discord.Embed(title="Error", description="You do not have permission to ban this member.", color=discord.Color.red())
                 await interaction.followup.send(embed=embed, ephemeral=True)
@@ -255,6 +282,10 @@ class Moderation(commands.GroupCog, group_name="mod"):
                         await self.send_mod_message(interaction, member, "Mute", reason, expiration_time_str)
                     else:
                         await self.send_mod_message(interaction, member, "Mute", reason)
+                    if self.check_expired_actions.is_running():
+                        self.check_expired_actions.restart()
+                    else:
+                        self.check_expired_actions.start()
                 else:
                     embed = discord.Embed(title="Error", description="I do not have permission to mute this member.", color=discord.Color.red())
                     await interaction.followup.send(embed=embed, ephemeral=True)
