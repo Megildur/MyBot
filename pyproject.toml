@@ -12,6 +12,7 @@ aiosqlite = "^0.20.0"
 deep-translator = "^1.11.4"
 langcodes = "^3.4.1"
 easy-pil = "^0.4.0"
+flask = "3.0.3"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
