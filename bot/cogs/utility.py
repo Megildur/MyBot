@@ -1,6 +1,6 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 import deep_translator
 from deep_translator import GoogleTranslator, single_detection
 import langcodes
@@ -23,9 +23,9 @@ class Utility(commands.GroupCog, name="utility"):
             callback=self.Translate_to_English,
         )
         self.bot.tree.add_command(self.ctx_menu)
-        self.bot.loop.create_task(self.load_reminders())
 
     async def cog_load(self) -> None:
+        self.load_reminders.start()
         tree = self.bot.tree
         self._old_tree_error = tree.on_error
         tree.on_error = self.tree_on_error
@@ -52,6 +52,7 @@ class Utility(commands.GroupCog, name="utility"):
             print(f"An error occurred: {error}")
             await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
 
+    @tasks.loop()
     async def load_reminders(self) -> None:
         async with aiosqlite.connect(reminders) as db:
             await db.execute('''
@@ -73,12 +74,17 @@ class Utility(commands.GroupCog, name="utility"):
                     remind_at = datetime.strptime(remind_at, '%Y-%m-%d %H:%M:%S')
                     delay = (remind_at - datetime.now()).total_seconds()
                     if delay > 0:
-                        self.bot.loop.create_task(self.send_reminder(user_id, guild_id, channel_id, reminder, delay, id))
+                        continue
                     else:
-                        self.bot.loop.create_task(self.send_reminder(user_id, guild_id, channel_id, reminder, 0, id))
+                        await self.send_reminder(user_id, guild_id, channel_id, reminder, id)
+            async with db.execute("SELECT guild_id, user_id, channel_id, reminder, remind_at, id FROM reminders ORDER BY remind_at LIMIT 1") as cursor:
+                next_reminder = await cursor.fetchone()
+                if next_reminder is None:
+                    self.load_reminders.stop()
+                await discord.utils.sleep_until(datetime.strptime(next_reminder[4], '%Y-%m-%d %H:%M:%S'))
+                await self.send_reminder(next_reminder[1], next_reminder[0], next_reminder[2], next_reminder[3], next_reminder[5])
 
-    async def send_reminder(self, user_id, guild_id, channel_id, reminder, delay, id) -> None:
-        await asyncio.sleep(delay)
+    async def send_reminder(self, user_id, guild_id, channel_id, reminder, id) -> None:
         guild = self.bot.get_guild(guild_id)
         channel = guild.get_channel(channel_id)
         user = guild.get_member(user_id)
@@ -147,13 +153,13 @@ class Utility(commands.GroupCog, name="utility"):
             if time_unit not in time_units:
                 raise ValueError("Invalid time unit. Please use 's', 'm', 'h', or 'd'.")
             reminder_time = time_value * time_units[time_unit]
-            remind_at = datetime.now() + timedelta(seconds=reminder_time)
+            remind_at = discord.utils.utcnow() + timedelta(seconds=reminder_time)
             embed = discord.Embed(title="Reminder Set", description=f"I will remind you about '{reminder}' in {time_value}{time_unit}.", color=discord.Color.green())
             embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
             await interaction.response.send_message(embed=embed)
             async with aiosqlite.connect(reminders) as db:
                 await db.execute("INSERT INTO reminders (guild_id, user_id, channel_id, reminder, remind_at, id) VALUES (?, ?, ?, ?, ?, ?)",
-                                (interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, remind_at.strftime('%Y-%m-%d %H:%M:%S'), reminder_id))
+                                (interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, remind_at, reminder_id))
                 await db.commit()
             self.bot.loop.create_task(self.send_reminder(interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, reminder_time, reminder_id))
         except ValueError as e:
