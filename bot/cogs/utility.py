@@ -10,6 +10,7 @@ import aiosqlite
 import asyncio
 from datetime import datetime, timedelta
 import uuid
+import pytz
 
 load_dotenv()
 
@@ -83,18 +84,26 @@ class Utility(commands.GroupCog, name="utility"):
                 rows = await cursor.fetchall()
                 for row in rows:
                     user_id, guild_id, channel_id, reminder, remind_at, id = row
-                    remind_at = datetime.strptime(remind_at, '%Y-%m-%d %H:%M:%S')
-                    delay = (remind_at - datetime.now()).total_seconds()
-                    if delay > 0:
-                        continue
-                    else:
+                    # Convert remind_at to a datetime object with correct TZ
+                    remind_at = datetime.fromisoformat(remind_at)
+                    delay = (remind_at - datetime.now(pytz.utc)).total_seconds()
+                    if delay <= 0:
                         await self.send_reminder(user_id, guild_id, channel_id, reminder, id)
+        
             async with db.execute("SELECT guild_id, user_id, channel_id, reminder, remind_at, id FROM reminders ORDER BY remind_at LIMIT 1") as cursor:
                 next_reminder = await cursor.fetchone()
                 if next_reminder is None:
                     self.load_reminders.stop()
-                await discord.utils.sleep_until(datetime.strptime(next_reminder[4], '%Y-%m-%d %H:%M:%S'))
-                await self.send_reminder(next_reminder[1], next_reminder[0], next_reminder[2], next_reminder[3], next_reminder[5])
+                    return
+            # Use fromisoformat to parse and set the `sleep_until`
+                user_id, guild_id, channel_id, reminder, remind_at, id = next_reminder
+                next_remind_at = datetime.fromisoformat(remind_at)
+                await discord.utils.sleep_until(next_remind_at)
+                await self.send_reminder(user_id, guild_id, channel_id, reminder, id)
+
+    @load_reminders.before_loop
+    async def before_load_reminders(self) -> None:
+        await self.bot.wait_until_ready()
 
     async def send_reminder(self, user_id, guild_id, channel_id, reminder, id) -> None:
         guild = self.bot.get_guild(guild_id)
@@ -175,7 +184,10 @@ class Utility(commands.GroupCog, name="utility"):
                 await db.execute("INSERT INTO reminders (guild_id, user_id, channel_id, reminder, remind_at, id) VALUES (?, ?, ?, ?, ?, ?)",
                                 (interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, remind_at, reminder_id))
                 await db.commit()
-            self.bot.loop.create_task(self.send_reminder(interaction.user.id, interaction.guild_id, interaction.channel_id, reminder, reminder_time, reminder_id))
+            if self.load_reminders.is_running():
+                self.load_reminders.restart()
+            else:
+                self.load_reminders.start()
         except ValueError as e:
             await interaction.response.send_message(str(e), ephemeral=True)
 

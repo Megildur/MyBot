@@ -8,6 +8,7 @@ from bot.utils.paginator import ButtonPaginator
 from bot.utils.moderation_log import moderation_log, moderation_log_fetch
 from datetime import datetime, timedelta
 import asyncio
+import pytz
 
 persistent_data = "data/persistent_data.db"
 
@@ -63,35 +64,39 @@ class Moderation(commands.GroupCog, group_name="mod"):
 
     @tasks.loop()
     async def check_expired_actions(self) -> None:
-        
-        current_time = datetime.utcnow()
+        current_time = datetime.utcnow().replace(tzinfo=pytz.utc)
         async with aiosqlite.connect(persistent_data) as db:
             async with db.execute(
-                "SELECT user_id, guild_id, action_type FROM temporary_actions WHERE expires_at <= ?", (current_time,)
+                f"SELECT user_id, guild_id, action_type FROM temporary_actions WHERE expires_at <= ?", (current_time,)
             ) as cursor:
                 rows = await cursor.fetchall()
-                if rows:
-                    for user_id, guild_id, action_type in rows:
-                        guild = self.bot.get_guild(guild_id)
-                        if not guild:
-                            continue
-                            
-                        if action_type == 'mute':
-                            await self.handle_unmute_action(guild, user_id)
-                        elif action_type == 'ban':
-                            await self.handle_unban_action(guild, user_id)
-                        await db.execute(
-                            "DELETE FROM temporary_actions WHERE user_id = ? AND guild_id = ? AND action_type = ?",
-                            (user_id, guild_id, action_type)
-                        )
-                        await db.commit()
+                for user_id, guild_id, action_type in rows:
+                    guild = self.bot.get_guild(guild_id)
+                    if not guild:
+                        continue
+                    if action_type == 'mute':
+                        await self.handle_unmute_action(guild, user_id)
+                    elif action_type == 'ban':
+                        await self.handle_unban_action(guild, user_id)
+                    await db.execute(
+                        f"DELETE FROM temporary_actions WHERE user_id = ? AND guild_id = ? AND action_type = ?",
+                        (user_id, guild_id, action_type)
+                    )
+                    await db.commit()
             async with db.execute(
-                "SELECT user_id, guild_id, action_type, expires_at FROM temporary_actions ORDER BY expires_at LIMIT 1"
+                f"SELECT user_id, guild_id, action_type, expires_at FROM temporary_actions ORDER BY expires_at LIMIT 1"
             ) as cursor:
                 next_task = await cursor.fetchone()
                 if next_task is None:
                     self.check_expired_actions.stop()
-                await discord.utils.sleep_until(next_task[3])
+                    return
+            next_expires_at = datetime.fromisoformat(next_task[3])
+            await discord.utils.sleep_until(next_expires_at)
+            guild = self.bot.get_guild(next_task[1])
+            if next_task[2] == 'mute':
+                await self.handle_unmute_action(guild, next_task[0])
+            elif next_task[2] == 'ban':
+                await self.handle_unban_action(guild, next_task[0])
 
     @check_expired_actions.before_loop
     async def before_check_expired_actions(self) -> None:
