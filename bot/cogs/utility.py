@@ -14,6 +14,7 @@ import uuid
 load_dotenv()
 
 reminders = "data/reminders.db"
+notes = "data/notes.db"
 
 class Utility(commands.GroupCog, name="utility"):
     def __init__(self, bot) -> None:
@@ -26,6 +27,7 @@ class Utility(commands.GroupCog, name="utility"):
 
     async def cog_load(self) -> None:
         self.load_reminders.start()
+        await self.notes_table()
         tree = self.bot.tree
         self._old_tree_error = tree.on_error
         tree.on_error = self.tree_on_error
@@ -51,6 +53,16 @@ class Utility(commands.GroupCog, name="utility"):
         else:
             print(f"An error occurred: {error}")
             await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
+
+    async def notes_table(self) -> None:
+        async with aiosqlite.connect(notes) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS notes (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER,
+                    note TEXT
+                )
+            """)
 
     @tasks.loop()
     async def load_reminders(self) -> None:
@@ -120,6 +132,8 @@ class Utility(commands.GroupCog, name="utility"):
 
     reminder = app_commands.Group(name="reminder", description="Commands for reminders")
 
+    notes = app_commands.Group(name="notes", description="Commands for notes")
+
     @app_commands.command(name="member_count", description="Get the total member count of the server")
     @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
     async def member_count(self, interaction: discord.Interaction) -> None:
@@ -169,7 +183,7 @@ class Utility(commands.GroupCog, name="utility"):
     @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
     async def reminder_list(self, interaction: discord.Interaction) -> None:
         async with aiosqlite.connect(reminders) as db:
-            async with db.execute("SELECT reminder, remind_at, id FROM reminders WHERE guild_id = ? AND user_id = ?", (interaction.guild_id, interaction.user.id)) as cursor:
+            async with db.execute("SELECT reminder, remind_at, id FROM reminders WHERE user_id = ?", (interaction.user.id,)) as cursor:
                 rows = await cursor.fetchall()
                 if not rows:
                     embed = discord.Embed(title="No Reminders Set", description="You have no reminders set.", color=discord.Color.green())
@@ -191,7 +205,7 @@ class Utility(commands.GroupCog, name="utility"):
     @app_commands.describe(id="The ID of the reminder to delete")
     async def reminder_delete(self, interaction: discord.Interaction, id: str) -> None:
         async with aiosqlite.connect(reminders) as db:
-            async with db.execute("SELECT reminder, remind_at FROM reminders WHERE guild_id = ? AND user_id = ? AND id = ?", (interaction.guild_id, interaction.user.id, id)) as cursor:
+            async with db.execute("SELECT reminder, remind_at FROM reminders WHERE user_id = ? AND id = ?", (interaction.user.id, id)) as cursor:
                 row = await cursor.fetchone()
                 if not row:
                     embed = discord.Embed(title="Reminder Not Found", description=f"No reminder found with ID {id}.", color=discord.Color.red())
@@ -203,10 +217,59 @@ class Utility(commands.GroupCog, name="utility"):
                 time_left = remind_at - datetime.now()
                 time_left_str = str(time_left).split('.')[0]
                 embed = discord.Embed(title="Reminder Deleted", description=f"I have deleted your reminder '{reminder}' that was set {time_left_str} ago.", color=discord.Color.green())
-            await db.execute("DELETE FROM reminders WHERE guild_id = ? AND user_id = ? AND id = ?", (interaction.guild_id, interaction.user.id, id))
+            await db.execute("DELETE FROM reminders WHERE user_id = ? AND id = ?", (interaction.user.id, id))
             await db.commit()
         embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @notes.command(name="add", description="Add a note")
+    @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
+    @app_commands.describe(note="The note to add")
+    async def notes_add(self, interaction: discord.Interaction, note: str) -> None:
+        note_id = str(uuid.uuid4())
+        async with aiosqlite.connect(notes) as db:
+            await db.execute("INSERT INTO notes (user_id, note, id) VALUES (?, ?, ?)", (interaction.user.id, note, note_id))
+            await db.commit()
+        embed = discord.Embed(title="Note Added", description=f"Your note '{note}' has been added.", color=discord.Color.green(), timestamp=discord.utils.utcnow())
+        embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @notes.command(name="list", description="List all your notes")
+    @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
+    async def notes_list(self, interaction: discord.Interaction) -> None:
+        async with aiosqlite.connect(notes) as db:
+            async with db.execute("SELECT note, id FROM notes WHERE user_id = ?", (interaction.user.id,)) as cursor:
+                rows = await cursor.fetchall()
+                if not rows:
+                    embed = discord.Embed(title="No Notes Set", description="You have no notes set.", color=discord.Color.green())
+                    embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+                    await interaction.response.send_message(embed=embed)
+                    return
+                embed = discord.Embed(title="Your Notes", color=discord.Color.green())
+                for row in rows:
+                    note = row[0]
+                    id = row[1]
+                    embed.add_field(name=f"Note", value=f"{note} (id:{id})", inline=False)
+                embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @notes.command(name="delete", description="Delete a note")
+    @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
+    @app_commands.describe(id="The ID of the note to delete")
+    async def notes_delete(self, interaction: discord.Interaction, id: str) -> None:
+        async with aiosqlite.connect(notes) as db:
+            async with db.execute("SELECT note, id FROM notes WHERE user_id = ? AND id = ?", (interaction.user.id, id)) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    embed = discord.Embed(title="Note Not Found", description=f"No note found with ID {id}.", color=discord.Color.red())
+                    embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+                    await interaction.response.send_message(embed=embed)
+                    return
+                note, _ = row
+                embed = discord.Embed(title="Note Deleted", description=f"Your note '{note}' has been deleted.", color=discord.Color.green(), timestamp=discord.utils.utcnow())
+                embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+                await db.execute("DELETE FROM notes WHERE user_id = ? AND id = ?", (interaction.user.id, id))
+                await db.commit()
 
 async def setup(bot) -> None:
     await bot.add_cog(Utility(bot))
