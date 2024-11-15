@@ -73,7 +73,7 @@ class JoinToCreateCog(commands.GroupCog, group_name="join_to_create"):
                 )
                 return
             async with aiosqlite.connect(jtc) as db:
-                async with db.execute('SELECT channel_id FROM join_to_create WHERE guild_id = ?', (interaction.guild.id)) as cursor:
+                async with db.execute('SELECT channel_id FROM join_to_create WHERE guild_id = ?', (interaction.guild.id,)) as cursor:
                     result = await cursor.fetchall()
                 if result:
                     for row in result:
@@ -88,7 +88,7 @@ class JoinToCreateCog(commands.GroupCog, group_name="join_to_create"):
                         else:
                             await db.execute('INSERT INTO join_to_create VALUES (?, ?, ?, ?)', (interaction.guild_id, use_existing_channel.name, use_existing_channel.id, channel_category.id))
                             await db.commit()
-                            embed = discord.Embed(title='Join to create channel created', description=f'Created join to create channel {use_existing_channel.mention} in category {channel_category.mention}', color=discord.Color.green())
+                            embed = discord.Embed(title='Join to create channel added', description=f'Added {use_existing_channel.mention} as a join to create channel in category {channel_category.mention}', color=discord.Color.green())
                             await interaction.response.send_message(embed=embed, ephemeral=True)
                             return
                 else:
