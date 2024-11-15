@@ -144,7 +144,7 @@ class JoinToCreateCog(commands.GroupCog, group_name="join_to_create"):
             )
             return
         async with aiosqlite.connect(jtc) as db:
-            async with db.execute('SELECT channel_id FROM join_to_create WHERE guild_id = ?', (interaction.guild.id)) as cursor:
+            async with db.execute('SELECT channel_id FROM join_to_create WHERE guild_id = ?', (interaction.guild.id,)) as cursor:
                 result = await cursor.fetchall()
                 if result:
                     for row in result:
@@ -172,7 +172,7 @@ class JoinToCreateCog(commands.GroupCog, group_name="join_to_create"):
     @app_commands.command(name='list', description='List all join to create channels')
     async def list(self, interaction):
         async with aiosqlite.connect(jtc) as db:
-            async with db.execute('SELECT channel_id FROM join_to_create WHERE guild_id = ?', (interaction.guild.id)) as cursor:
+            async with db.execute('SELECT channel_id FROM join_to_create WHERE guild_id = ?', (interaction.guild.id,)) as cursor:
                 result = await cursor.fetchall()
         if not result:
             embed = discord.Embed(title='Error', description='There are no join to create channels', color=discord.Color.red())
