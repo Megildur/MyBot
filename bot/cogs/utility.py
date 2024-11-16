@@ -11,6 +11,7 @@ import asyncio
 from datetime import datetime, timedelta
 import uuid
 import pytz
+from bot.utils.paginator import ButtonPaginator
 
 load_dotenv()
 
@@ -257,13 +258,17 @@ class Utility(commands.GroupCog, name="utility"):
                     embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
-                embed = discord.Embed(title="Your Notes", color=discord.Color.green())
-                for row in rows:
-                    note = row[0]
-                    id = row[1]
+                pages = []
+                for i in range(0, len(rows), 5):
+                    embed = discord.Embed(title="Your Notes", color=discord.Color.yellow())
+                    for j in range(i, min(i + 5, len(rows))):
+                        note, id = rows[j]
                     embed.add_field(name=f"Note (id:{id})", value=f"{note}", inline=False)
-                embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                    embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
+                    pages.append(embed)
+                paginator = ButtonPaginator(pages=pages, author_id=interaction.user.id)
+                message = await interaction.response.send_message(embed=pages[0], view=paginator)
+                paginator.message = message
 
     @notes.command(name="delete", description="Delete a note")
     @app_commands.checks.cooldown(1, 30, key=lambda i: (i.guild_id, i.user.id))
