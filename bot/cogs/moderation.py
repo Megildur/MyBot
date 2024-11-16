@@ -19,30 +19,6 @@ class Moderation(commands.GroupCog, group_name="mod"):
     async def cog_load(self) -> None:
         await self.initialize_database()
         self.check_expired_actions.start()
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = self.tree_on_error
-
-    async def cog_unload(self) -> None:
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
-
-    async def tree_on_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError
-    ) -> None:
-        if isinstance(error, app_commands.CommandOnCooldown):
-            retry_after = int(error.retry_after)
-            embed = discord.Embed(
-                title="Command Cooldown",
-                description=f"This command is on cooldown. Please try again in {retry_after} seconds.",
-                color=discord.Color.red()
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-        else:
-            print(f"An error occurred: {error}")
-            await interaction.followup.send(f"An error occurred: {error}", ephemeral=True)
 
     def access_log_channel_id(self, guild_id) -> Optional[int]:
         admin_cog = self.bot.admin_cog
