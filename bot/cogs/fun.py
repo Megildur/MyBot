@@ -2,9 +2,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from discord.app_commands import Choice
-from discord.ui import Button, View
-from typing import Optional
+from typing import Optional, Literal
 import random
+from .fun_ext.ttt import TicTacToe
+from .fun_ext.rps import RockPaperScissors
 
 fortunes = [
     "*Be careful or you could fall for some tricks today.*",
@@ -139,18 +140,54 @@ responses = [
     'I don\'t know.'
 ]
 
+side_options=[
+    discord.SelectOption(label="3", value="3"),
+    discord.SelectOption(label="4", value="4"),
+    discord.SelectOption(label="6", value="6"),
+    discord.SelectOption(label="8", value="8"),
+    discord.SelectOption(label="10", value="10"),
+    discord.SelectOption(label="12", value="12"),
+    discord.SelectOption(label="20", value="20"),
+    discord.SelectOption(label="Percentage", value="100")
+]
+
+rolls_options=[
+    discord.SelectOption(label="1", value="1"),
+    discord.SelectOption(label="2", value="2"),
+    discord.SelectOption(label="3", value="3"),
+    discord.SelectOption(label="4", value="4"),
+    discord.SelectOption(label="5", value="5"),
+    discord.SelectOption(label="6", value="6"),
+    discord.SelectOption(label="7", value="7"),
+    discord.SelectOption(label="8", value="8"),
+    discord.SelectOption(label="9", value="9"),
+    discord.SelectOption(label="10", value="10"),
+    discord.SelectOption(label="11", value="11"),
+    discord.SelectOption(label="12", value="12"),
+    discord.SelectOption(label="13", value="13"),
+    discord.SelectOption(label="14", value="14"),
+    discord.SelectOption(label="15", value="15"),
+    discord.SelectOption(label="16", value="16"),
+    discord.SelectOption(label="17", value="17"),
+    discord.SelectOption(label="18", value="18"),
+    discord.SelectOption(label="19", value="19"),
+    discord.SelectOption(label="20", value="20")
+]
+
 @app_commands.allowed_installs(guilds=True, users=True)
 @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 class Fun(commands.GroupCog, group_name='fun'):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+
+    dice = app_commands.Group(name='dice', description='Rolls a dice')
             
     @app_commands.command(name="fortune", description="Get a fortune cookie")
     @app_commands.checks.cooldown(1, 86400, key=lambda i: i.user.id)
-    async def fortune(self, interaction: discord.Interaction):
+    async def fortune(self, interaction: discord.Interaction) -> None:
         await self.fortune_cookie(interaction)
 
-    async def fortune_cookie(self, interaction):
+    async def fortune_cookie(self, interaction) -> None:
         fortune = random.choice(fortunes)
         embed = discord.Embed(title=f"**{interaction.user.display_name}'s** fortune says…", description=fortune, color=0x00ff00)
         file = discord.File("data/images/fun/fortune.jpg", filename="fortune.jpg")
@@ -160,10 +197,10 @@ class Fun(commands.GroupCog, group_name='fun'):
 
     @app_commands.command(name="8ball", description="Ask the magic 8 ball a question")
     @app_commands.checks.cooldown(1, 30, key=lambda i: i.user.id)
-    async def fun_eight_ball(self, interaction: discord.Interaction, question: str):
+    async def fun_eight_ball(self, interaction: discord.Interaction, question: str) -> None:
         await self.eight_ball_response(interaction, question)
 
-    async def eight_ball_response(self, interaction: discord.Interaction, question: str):
+    async def eight_ball_response(self, interaction: discord.Interaction, question: str) -> None:
         embed = discord.Embed(title="Magic 8 Ball", description=f"{interaction.user.display_name}'s Question: {question}", color=0x00ff00)
         embed.add_field(name=f"{interaction.user.display_name}'s Answer", value=random.choice(responses), inline=False)
         file = discord.File("data/images/fun/8ball.png", filename="8ball.png")
@@ -174,10 +211,10 @@ class Fun(commands.GroupCog, group_name='fun'):
 
     @app_commands.command(name="coinflip", description="Flips a coin")
     @app_commands.checks.cooldown(1, 30, key=lambda i: i.user.id)
-    async def fun_coinflip(self, interaction: discord.Interaction):
+    async def fun_coinflip(self, interaction: discord.Interaction) -> None:
         await self.coinflip(interaction)
 
-    async def coinflip(self, interaction: discord.Interaction):
+    async def coinflip(self, interaction: discord.Interaction) -> None:
         choices = ['Heads', 'Tails']
         choice = random.choice(choices)
 
@@ -193,16 +230,98 @@ class Fun(commands.GroupCog, group_name='fun'):
 
         await interaction.response.send_message(file=file, embed=embed, view=view)
 
+    @dice.command(name="roll", description="Roll a dice. Rolls default to 1 when when not used")
+    @app_commands.describe(sides="The number of sides on the dice", rolls="The number of dice to roll. Defaults to 1.")
+    @app_commands.checks.cooldown(1, 30, key=lambda i: i.user.id)
+    @app_commands.choices(
+        sides = [
+            app_commands.Choice(name="3", value=3),
+            app_commands.Choice(name="4", value=4),
+            app_commands.Choice(name="6", value=6),
+            app_commands.Choice(name="8", value=8),
+            app_commands.Choice(name="10", value=10),
+            app_commands.Choice(name="12", value=12),
+            app_commands.Choice(name="20", value=20),
+            app_commands.Choice(name="Percentage", value=100)
+        ]
+    )
+    async def fun_roll_dice(
+        self, 
+        interaction: discord.Interaction, 
+        sides: Choice[int],
+        rolls: Optional[Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]] = 1
+    ) -> None:
+        await self.roll(interaction, sides, rolls)
+        
+    async def roll(self, interaction: discord.Interaction, sides, rolls) -> None:
+        try:
+            choices = [random.randint(1, sides.value) for _ in range(rolls)]
+        except AttributeError:
+            choices = [random.randint(1, sides) for _ in range(rolls)]
+        total = sum(choices)
+        try:
+            roll_sides = sides.value
+        except AttributeError:
+            roll_sides = sides
+        if roll_sides == 100:
+            embed = discord.Embed(title="Dice Roll", description=f"{interaction.user.display_name} is rolling a percentage...", color=0x00ff00)
+            embed.add_field(name="Results", value=f"{'%, '.join(map(str, choices))}%", inline=False)
+            file = discord.File("data/images/fun/d10.png", filename="d10.png")
+            embed.set_thumbnail(url="attachment://d10.png")
+            view = DiceRollView()
+            await interaction.response.send_message(file=file, embed=embed, view=view)
+            return
+        else:
+            embed = discord.Embed(title="Dice Roll", description=f"{interaction.user.display_name} is rolling {rolls}d{roll_sides}...", color=0x00ff00)
+            embed.add_field(name="Results", value=f"{', '.join(map(str, choices))}", inline=False)
+            if rolls >= 2:
+                embed.add_field(name=f"{interaction.user.display_name}\'s Total", value=f"That's a total of {total}!", inline=False)
+            if roll_sides == 3:
+                file = discord.File("data/images/fun/d6.png", filename="d6.png")
+                embed.set_thumbnail(url="attachment://d6.png")
+            elif roll_sides == 4:
+                file = discord.File("data/images/fun/d4.png", filename="d4.png")
+                embed.set_thumbnail(url="attachment://d4.png")
+            elif roll_sides == 6:
+                file = discord.File("data/images/fun/d6.png", filename="d6.png")
+                embed.set_thumbnail(url="attachment://d6.png")
+            elif roll_sides == 8:
+                file = discord.File("data/images/fun/d8.png", filename="d8.png")
+                embed.set_thumbnail(url="attachment://d8.png")
+            elif roll_sides == 10:
+                file = discord.File("data/images/fun/d10.png", filename="d10.png")
+                embed.set_thumbnail(url="attachment://d10.png")
+            elif roll_sides == 12:
+                file = discord.File("data/images/fun/d12.png", filename="d12.png")
+                embed.set_thumbnail(url="attachment://d12.png")
+            elif roll_sides == 20:
+                file = discord.File("data/images/fun/d20.png", filename="d20.png")
+                embed.set_thumbnail(url="attachment://d20.png")
+            view = DiceRollView(self.bot)
+            await interaction.response.send_message(file=file, embed=embed, view=view)
+
+    @app_commands.command(name="tictactoe", description="Play a game of tic-tac-toe")
+    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
+    async def tictactoe(self, interaction: discord.Interaction, opponent: discord.Member | discord.User):
+        await TicTacToe(self.bot).tttstart(interaction, opponent)
+
+    @app_commands.command(name="rock_paper_scissors", description="Play a game of rock-paper-scissors!")
+    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
+    async def rps_self(self, interaction: discord.Interaction):
+        await RockPaperScissors(self.bot).rpss(interaction)
+
 class ButtonOnCooldown(commands.CommandError):
     def __init__(self, retry_after: float) -> None:
         self.retry_after = retry_after
 
-def key(interaction: discord.Interaction):
+def key(interaction: discord.Interaction) -> int:
     return interaction.user.id
 
 global_cooldown_f = commands.CooldownMapping.from_cooldown(1, 86400, key)
 
 global_cooldown_8 = commands.CooldownMapping.from_cooldown(1, 30, key)
+
+global_cooldown_d = commands.CooldownMapping.from_cooldown(4, 30, key)
 
 async def error_handler(interaction: discord.Interaction, error: commands.CommandError) -> None:
     retry_after_hours = round(error.retry_after / 3600)
@@ -243,10 +362,13 @@ class NextFortuneView(discord.ui.View):
         button.disabled = True
         await Fun(self.bot).fortune_cookie(interaction)
         if interaction.message:
-            await interaction.message.edit(view=self)
+            try:
+                await interaction.message.edit(view=self)
+            except discord.errors.Forbidden:
+                pass
 
 class EightBallView(discord.ui.View):
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         super().__init__(timeout=None)
         self.bot = bot
 
@@ -268,11 +390,11 @@ class EightBallView(discord.ui.View):
         emoji="🎱",
         style=discord.ButtonStyle.primary
     )
-    async def ask_again(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def ask_again(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await interaction.response.send_modal(AskAgainModal(self.bot, button, self))
 
 class AskAgainModal(discord.ui.Modal, title="Ask Again"):
-    def __init__(self, bot, button, view):
+    def __init__(self, bot, button, view) -> None:
         super().__init__()
         self.bot = bot
         self.button = button
@@ -283,14 +405,17 @@ class AskAgainModal(discord.ui.Modal, title="Ask Again"):
         placeholder="What's your question?"
     )
 
-    async def on_submit(self, interaction: discord.Interaction):
+    async def on_submit(self, interaction: discord.Interaction) -> None:
         self.button.disabled = True
         await Fun(self.bot).eight_ball_response(interaction, self.question.value)
         if interaction.message:
-            await interaction.message.edit(view=self.view)
+            try:
+                await interaction.message.edit(view=self.view)
+            except discord.errors.Forbidden:
+                pass
 
 class CoinFlipView(discord.ui.View):
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         super().__init__(timeout=None)
         self.bot = bot
 
@@ -312,14 +437,78 @@ class CoinFlipView(discord.ui.View):
         emoji="🪙",
         style=discord.ButtonStyle.primary
     )
-    async def flip_again(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def flip_again(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         button.disabled = True
         await Fun(self.bot).coinflip(interaction)
         if interaction.message:
-            await interaction.message.edit(view=self)
+            try:
+                await interaction.message.edit(view=self)
+            except discord.errors.Forbidden:
+                pass
+
+class DiceRollView(discord.ui.View):
+    def __init__(self, bot) -> None:
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.sides = 0
+        self.rolls = 0
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        retry_after = global_cooldown_d.update_rate_limit(interaction)
+        if retry_after:
+            raise ButtonOnCooldown(retry_after)
+        return True
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        if isinstance(error, ButtonOnCooldown):
+            await error_handler(interaction, error)
+        else:
+            await super().on_error(interaction, error, item)
+        
+    @discord.ui.select(
+        options=side_options, 
+        row=0, 
+        placeholder="Select the number of sides on the dice", 
+        min_values=1, 
+        max_values=1, 
+        custom_id="dice_roll_sides"
+    )
+    async def dice_roll_sides(self, interaction: discord.Interaction, select: discord.ui.Select) -> None:
+        self.sides = int(select.values[0])
+        await interaction.response.edit_message(view=self)
+
+    @discord.ui.select(options=rolls_options, row=1, placeholder="Select the number of dice to roll (defaults to 1)", min_values=0, max_values=1, custom_id="dice_roll_rolls")
+    async def dice_roll_rolls(self, interaction: discord.Interaction, select: discord.ui.Select) -> None:
+        self.rolls = int(select.values[0])
+        await interaction.response.edit_message(view=self)
+
+    @discord.ui.button(
+        label="Reroll", 
+        row=2,
+        custom_id="reroll_simple_dice",
+        emoji="🎲",
+        style=discord.ButtonStyle.primary
+        )
+    async def reroll(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        button.disabled = True
+        if self.sides == 0:
+            await interaction.response.send_message("Please select the number of sides on the dice first.", ephemeral=True)
+            return
+        else:
+            if self.rolls == 0:
+                self.rolls = 1
+            await Fun(self.bot).roll(interaction, self.sides, self.rolls)
+            if interaction.message:
+                try:
+                    await interaction.message.edit(view=self)
+                except discord.errors.Forbidden:
+                    pass
 
 async def setup(bot) -> None:
     await bot.add_cog(Fun(bot))
     bot.add_view(NextFortuneView(bot))
     bot.add_view(EightBallView(bot))
     bot.add_view(CoinFlipView(bot))
+    bot.add_view(DiceRollView(bot))
+    await bot.load_extension(f'bot.cogs.fun_ext.ttt')
+    await bot.load_extension(f'bot.cogs.fun_ext.rps')
