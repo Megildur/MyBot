@@ -1,6 +1,0 @@
-discord.py
-aiosqlite
-python-dotenv
-easy-pil
-deep-translator
-langcodes
