@@ -12,6 +12,44 @@ class SyncCog(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
+    async def cog_load(self) -> None:
+        tree = self.bot.tree
+        self._old_tree_error = tree.on_error
+        tree.on_error = self.tree_on_error
+
+    async def cog_unload(self) -> None:
+        tree = self.bot.tree
+        tree.on_error = self._old_tree_error
+
+    async def tree_on_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError
+    ) -> None:
+        if isinstance(error, app_commands.CommandOnCooldown):
+            retry_after = int(error.retry_after)
+            if retry_after <= 60:
+                retry_after = f"{retry_after} seconds"
+            elif retry_after <= 3600:
+                retry_after = f"{retry_after // 60} minutes"
+            else:
+                retry_after = f"{retry_after // 3600} hours"
+            embed = discord.Embed(
+                title="Command Cooldown",
+                description=f"This command is on cooldown. Please try again in {retry_after}.",
+                color=discord.Color.red()
+            )
+            try:
+                if interaction.response.is_done():
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+                else:
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+            except discord.HTTPException:
+                print(f"Failed to send cooldown message for {interaction.user.name}#{interaction.user.discriminator}")
+        else:
+            print(f"An error occurred: {error}")
+            await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
+
     @commands.command(name='sync', description='Syncs the bot', hidden=True)
     @commands.is_owner()
     async def sync(self, ctx) -> None:
