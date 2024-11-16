@@ -59,7 +59,7 @@ class Utility(commands.GroupCog, name="utility"):
         async with aiosqlite.connect(notes) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS notes (
-                    id INTEGER PRIMARY KEY,
+                    id TEXT PRIMARY KEY,
                     user_id INTEGER,
                     note TEXT
                 )
@@ -255,13 +255,13 @@ class Utility(commands.GroupCog, name="utility"):
                 if not rows:
                     embed = discord.Embed(title="No Notes Set", description="You have no notes set.", color=discord.Color.green())
                     embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
-                    await interaction.response.send_message(embed=embed)
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
                 embed = discord.Embed(title="Your Notes", color=discord.Color.green())
                 for row in rows:
                     note = row[0]
                     id = row[1]
-                    embed.add_field(name=f"Note", value=f"{note} (id:{id})", inline=False)
+                    embed.add_field(name=f"Note (id:{id})", value=f"{note}", inline=False)
                 embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
                 await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -275,13 +275,14 @@ class Utility(commands.GroupCog, name="utility"):
                 if not row:
                     embed = discord.Embed(title="Note Not Found", description=f"No note found with ID {id}.", color=discord.Color.red())
                     embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
-                    await interaction.response.send_message(embed=embed)
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
                 note, _ = row
                 embed = discord.Embed(title="Note Deleted", description=f"Your note '{note}' has been deleted.", color=discord.Color.green(), timestamp=discord.utils.utcnow())
                 embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
                 await db.execute("DELETE FROM notes WHERE user_id = ? AND id = ?", (interaction.user.id, id))
                 await db.commit()
+                await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot) -> None:
     await bot.add_cog(Utility(bot))
