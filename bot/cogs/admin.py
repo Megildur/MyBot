@@ -128,7 +128,7 @@ class Admin(commands.GroupCog, group_name="admin"):
         return self.log_channel_id.get(guild_id, None)
 
     @app_commands.command(name="ping", description="Set the ping message")
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.default_permissions(manage_guild=True)
     @app_commands.checks.cooldown(1, 300, key=lambda i: (i.guild_id, i.user.id))
     async def ping(self, interaction: discord.Interaction) -> None:
         guild_id = interaction.guild_id
@@ -140,7 +140,7 @@ class Admin(commands.GroupCog, group_name="admin"):
         await self.save_message_info(self.ping_message_id[guild_id], self.ping_channel_id[guild_id], guild_id)
 
     @app_commands.command(name="setlogchannel", description="Set the log channel")
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.default_permissions(manage_guild=True)
     @app_commands.describe(channel="The channel to set as the log channel for moderation actions")
     @app_commands.checks.cooldown(1, 10, key=lambda i: (i.guild_id, i.user.id))
     async def setlogchannel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
