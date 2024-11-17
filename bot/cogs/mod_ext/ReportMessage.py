@@ -36,7 +36,7 @@ class ReportMessageModal(discord.ui.Modal):
         self.channel = channel
         super().__init__(title="Report a Message to Server Staff")
         self.user_input = discord.ui.TextInput(
-            label=f"Report Message: {self.message.content}",
+            label=f"Report Message:",
             style=discord.TextStyle.long,
             placeholder="Reason...",
             required=True,
