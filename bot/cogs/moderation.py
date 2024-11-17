@@ -612,3 +612,4 @@ class Moderation(commands.GroupCog, group_name="mod"):
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Moderation(bot))
+    await bot.load_extension(f'bot.cogs.mod_ext.ReportMessage')
