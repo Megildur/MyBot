@@ -263,7 +263,7 @@ class Utility(commands.GroupCog, name="utility"):
                     embed = discord.Embed(title="Your Notes", color=discord.Color.yellow())
                     for j in range(i, min(i + 5, len(rows))):
                         note, id = rows[j]
-                    embed.add_field(name=f"Note (id:{id})", value=f"{note}", inline=False)
+                        embed.add_field(name=f"Note ID: {id}", value=note, inline=False)
                     embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar.url)
                     pages.append(embed)
                 paginator = ButtonPaginator(pages=pages, author_id=interaction.user.id)
