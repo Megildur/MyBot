@@ -97,7 +97,7 @@ class ReportButtons(discord.ui.View):
         button.style=discord.ButtonStyle.secondary
         await interaction.response.edit_message(view=self)
         embed = discord.Embed(title="Warning", description=f'Reason: {self.input}', color=discord.Color.red())
-        embed.set_footer(text=f'Warned by {interaction.user.mention}#{interaction.user.discriminator}', icon_url=interaction.user.avatar.url)
+        embed.set_footer(text=f'Warned by {interaction.user.name}#{interaction.user.discriminator}', icon_url=interaction.user.avatar.url)
         embed.timestamp = discord.utils.utcnow()
         embed.add_field(name="Message:", value=f'[Jump to Message]({self.message.jump_url})' if self.message else 'Message not found')
         embed.add_field(name="Message Content:", value=self.message.content if self.message else 'Message not found')
@@ -110,7 +110,7 @@ class ReportButtons(discord.ui.View):
         button.style=discord.ButtonStyle.secondary
         await interaction.response.edit_message(view=self)
         embed = discord.Embed(title="Choose a Ban Duration", description="Please select a ban duration from the dropdown menu below.", color=discord.Color.red())
-        await interaction.followup.send(embed=embed, view=BanSelect(self.bot, self.user, input), ephemeral=True)
+        await interaction.followup.send(embed=embed, view=BanSelect(self.bot, self.user, self.input), ephemeral=True)
 
     @discord.ui.button(label="Kick", style=discord.ButtonStyle.danger, custom_id= "mod_kick_button", emoji="🦶")
     async def kick_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -159,13 +159,14 @@ class TODropdownMenu(discord.ui.Select):
         )
         
     async def callback(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(thinking=True)
         selected_value = int(self.values[0])
         try:
             timeout_duration = timedelta(minutes=selected_value)
             await self.user.timeout(timeout_duration)
             await Moderation(self.bot).send_mod_message(interaction, self.user, "Timeout", self.input)
         except Exception as e:
-            await interaction.response.send_message(f"Failed to timeout {self.user.mention}. Error: {e}")
+            await interaction.followup.send(f"Failed to timeout {self.user.mention}. Error: {e}")
 
 class BanSelect(discord.ui.View):
     def __init__(self, bot, user, input, timeout=None) -> None:
@@ -203,19 +204,20 @@ class BanDropdownMenu(discord.ui.Select):
             ])
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(thinking=True)
         selected_value = int(self.values[0])
         try:
             if selected_value == 0:
                 await Moderation(self.bot).send_mod_message(interaction, self.user, "ban", self.input)
             else:
-                await self.user.ban(reason=self.input)
+                await self.user.ban()
                 await Moderation(self.bot).save_temporary_action(self.user.id, interaction.guild_id, 'ban', selected_value)
                 expiration = discord.utils.utcnow() + timedelta(minutes=selected_value)
                 experation_time = int(expiration.timestamp())
                 expiration_time_str = f"<t:{experation_time}:R>"
                 await Moderation(self.bot).send_mod_message(interaction, self.user, "ban", self.input, expiration_time_str)
         except Exception as e:
-            await interaction.response.send_message(f"Failed to ban {self.user.mention}. Error: {e}")
+            await interaction.followup.send(f"Failed to ban {self.user.mention}. Error: {e}")
 
 async def setup(bot) -> None:
     await bot.add_cog(ReportMessage(bot))
