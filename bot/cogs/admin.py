@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime, timedelta
 
 persistent_data = "data/persistent_data.db"
+reports = 'data/reports.db'
 
 class Admin(commands.GroupCog, group_name="admin"):
     def __init__(self, bot) -> None:
@@ -148,6 +149,15 @@ class Admin(commands.GroupCog, group_name="admin"):
         self.log_channel_id[guild_id] = channel.id
         await self.save_log_channel(self.log_channel_id[guild_id], guild_id)
         embed = discord.Embed(title="Log Channel Set", description=f"The log channel has been set to {channel.mention}", color=discord.Color.green())
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="set_report_channel", description="Set the report channel for the server.")
+    @app_commands.default_permissions(manage_guild=True)
+    async def set_report_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        async with aiosqlite.connect(reports) as db:
+            await db.execute('INSERT OR REPLACE INTO reports (guild_id, mod_report_channel) VALUES (?, ?)', (interaction.guild_id, channel.id))
+            await db.commit()
+        embed = discord.Embed(title="Report Channel Set", description=f"The report channel has been set to {channel.mention}.", color=discord.Color.green())
         await interaction.response.send_message(embed=embed, ephemeral=True)
         
 async def setup(bot) -> None:

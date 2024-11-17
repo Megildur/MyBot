@@ -28,15 +28,6 @@ class ReportMessage(commands.Cog):
         modal = ReportMessageModal(self.bot, message, message.author, message.channel)
         await interaction.response.send_modal(modal)
 
-    @app_commands.command(name="set_report_channel", description="Set the report channel for the server.")
-    @app_commands.default_permissions(manage_guild=True)
-    async def set_report_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
-        async with aiosqlite.connect(reports) as db:
-            await db.execute('INSERT OR REPLACE INTO reports (guild_id, mod_report_channel) VALUES (?, ?)', (interaction.guild_id, channel.id))
-            await db.commit()
-        embed = discord.Embed(title="Report Channel Set", description=f"The report channel has been set to {channel.mention}.", color=discord.Color.green())
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
 class ReportMessageModal(discord.ui.Modal):
     def __init__(self, bot, message, user, channel) -> None:
         self.bot = bot
