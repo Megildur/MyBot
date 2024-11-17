@@ -10,6 +10,7 @@ import deep_translator
 import langcodes
 import easy_pil
 import pytz
+import sympy
 
 load_dotenv()
 
