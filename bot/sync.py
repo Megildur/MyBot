@@ -65,6 +65,7 @@ class SyncCog(commands.Cog):
         join_to_create = discord.utils.get(self.bot.tree.get_commands(), name='join_to_create')
         media_only = discord.utils.get(self.bot.tree.get_commands(), name='media_only')
         fun_group = discord.utils.get(self.bot.tree.get_commands(), name='fun')
+        count = discord.utils.get(self.bot.tree.get_commands(), name='count')
         if mod_group:
             mod_commands = [cmd.name for cmd in mod_group.commands]
             print(f'Synced mod commands: {mod_commands}')
@@ -105,6 +106,11 @@ class SyncCog(commands.Cog):
             print(f'Synced fun commands: {fun_commands}')
         else:
             print('Fun group not found')
+        if count:
+            count_commands = [cmd.name for cmd in count.commands]
+            print(f'Synced count commands: {count_commands}')
+        else:
+            print('Count group not found')
         embed = discord.Embed(title='Sync Complete', description='The bot has been synced successfully.', color=discord.Color.green())
         embed.add_field(name='**SYNCED COMMANDS**', value=f"Synced {len(synced)} command groups")
         embed.add_field(name='**GROUPS SYNCED**', value=f"Synced commands: {', '.join(all_commands)}")
@@ -124,6 +130,8 @@ class SyncCog(commands.Cog):
             embed.add_field(name=f"{len(media_only_commands)} MEDIA ONLY COMMANDS SYNCED", value=f"Synced commands: {', '.join(media_only_commands)}")
         if fun_group:
             embed.add_field(name=f"{len(fun_commands)} FUN COMMANDS SYNCED", value=f"Synced commands: {', '.join(fun_commands)}")
+        if count:
+            embed.add_field(name=f"{len(count_commands)} COUNT COMMANDS SYNCED", value=f"Synced commands: {', '.join(count_commands)}")
         await ctx.send(embed=embed)
             
     @commands.command(name='syncg', description='Syncs the bot', hidden=True)
