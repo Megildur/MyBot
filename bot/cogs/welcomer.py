@@ -183,7 +183,7 @@ class Welcomer(commands.GroupCog, name="welcomer"):
             pass
 
     @app_commands.command(name="image_text_color", description="Set welcome image text color")
-    @app_commands.describe(color="Color to set")
+    @app_commands.describe(color="Color to set (must be hex e.g. #ff0000)")
     @app_commands.default_permissions(manage_guild=True)
     async def set_image_text_color(self, interaction: discord.Interaction, color: str):
         if not color.startswith("#"):
