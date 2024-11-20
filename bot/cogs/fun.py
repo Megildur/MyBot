@@ -183,7 +183,7 @@ class Fun(commands.GroupCog, group_name='fun'):
     dice = app_commands.Group(name='dice', description='Rolls a dice')
             
     @app_commands.command(name="fortune", description="Get a fortune cookie")
-    @app_commands.checks.cooldown(1, 86400, key=lambda i: i.user.id)
+    @app_commands.checks.cooldown(1, 43200, key=lambda i: i.user.id)
     async def fortune(self, interaction: discord.Interaction) -> None:
         await self.fortune_cookie(interaction)
 
@@ -268,7 +268,7 @@ class Fun(commands.GroupCog, group_name='fun'):
             embed.add_field(name="Results", value=f"{'%, '.join(map(str, choices))}%", inline=False)
             file = discord.File("data/images/fun/d10.png", filename="d10.png")
             embed.set_thumbnail(url="attachment://d10.png")
-            view = DiceRollView()
+            view = DiceRollAgainView(self.bot)
             await interaction.response.send_message(file=file, embed=embed, view=view)
             return
         else:
@@ -297,7 +297,7 @@ class Fun(commands.GroupCog, group_name='fun'):
             elif roll_sides == 20:
                 file = discord.File("data/images/fun/d20.png", filename="d20.png")
                 embed.set_thumbnail(url="attachment://d20.png")
-            view = DiceRollView(self.bot)
+            view = DiceRollAgainView(self.bot)
             await interaction.response.send_message(file=file, embed=embed, view=view)
 
     @app_commands.command(name="tictactoe", description="Play a game of tic-tac-toe")
@@ -317,11 +317,13 @@ class ButtonOnCooldown(commands.CommandError):
 def key(interaction: discord.Interaction) -> int:
     return interaction.user.id
 
-global_cooldown_f = commands.CooldownMapping.from_cooldown(1, 86400, key)
+global_cooldown_f = commands.CooldownMapping.from_cooldown(1, 43200, key)
 
 global_cooldown_8 = commands.CooldownMapping.from_cooldown(1, 30, key)
 
-global_cooldown_d = commands.CooldownMapping.from_cooldown(4, 30, key)
+global_cooldown_d = commands.CooldownMapping.from_cooldown(6, 30, key)
+
+global_cooldown_da = commands.CooldownMapping.from_cooldown(6, 30, key)
 
 async def error_handler(interaction: discord.Interaction, error: commands.CommandError) -> None:
     retry_after_hours = round(error.retry_after / 3600)
@@ -446,6 +448,35 @@ class CoinFlipView(discord.ui.View):
             except discord.errors.Forbidden:
                 pass
 
+class DiceRollAgainView(discord.ui.View):
+    def __init__(self, bot) -> None:
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        retry_after = global_cooldown_da.update_rate_limit(interaction)
+        if retry_after:
+            raise ButtonOnCooldown(retry_after)
+        return True
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        if isinstance(error, ButtonOnCooldown):
+            await error_handler(interaction, error)
+        else:
+            await super().on_error(interaction, error, item)
+
+    @discord.ui.button(
+        label="Roll Again", 
+        custom_id="roll_again_dice",
+        emoji="🎲",
+        style=discord.ButtonStyle.primary
+    )
+    async def roll_again(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        button.disabled = True
+        view = DiceRollView(self.bot)
+        embed = discord.Embed(title="Dice Roll", description="Please make your selections and click the button below to roll the dice!", color=discord.Color.blue())
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
 class DiceRollView(discord.ui.View):
     def __init__(self, bot) -> None:
         super().__init__(timeout=None)
@@ -475,12 +506,12 @@ class DiceRollView(discord.ui.View):
     )
     async def dice_roll_sides(self, interaction: discord.Interaction, select: discord.ui.Select) -> None:
         self.sides = int(select.values[0])
-        await interaction.response.edit_message(view=self)
+        await interaction.response.defer()
 
     @discord.ui.select(options=rolls_options, row=1, placeholder="Select the number of dice to roll (defaults to 1)", min_values=0, max_values=1, custom_id="dice_roll_rolls")
     async def dice_roll_rolls(self, interaction: discord.Interaction, select: discord.ui.Select) -> None:
         self.rolls = int(select.values[0])
-        await interaction.response.edit_message(view=self)
+        await interaction.response.defer()
 
     @discord.ui.button(
         label="Reroll", 
