@@ -541,5 +541,6 @@ async def setup(bot) -> None:
     bot.add_view(EightBallView(bot))
     bot.add_view(CoinFlipView(bot))
     bot.add_view(DiceRollView(bot))
+    bot.add_view(DiceRollAgainView(bot))
     await bot.load_extension(f'bot.cogs.fun_ext.ttt')
     await bot.load_extension(f'bot.cogs.fun_ext.rps')
