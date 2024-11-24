@@ -61,7 +61,6 @@ class MediaOnlyCog(commands.GroupCog, group_name='media_only'):
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                 else:
                     await db.execute("INSERT INTO media_only_channels (guild_id, channel_id) VALUES (?, ?)", (guild_id, channel.id))
-                    await db.executemany("INSERT INTO threads (guild_id, enabled) VALUES (?, ?)", [(guild_id, 0)])
                     await db.commit()
                     embed = discord.Embed(title="Media Only Channel Added", description=f"The channel {channel.mention} has been added to the media only channels list.", color=discord.Color.green())
                     await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -199,7 +198,7 @@ class MediaOnlyCog(commands.GroupCog, group_name='media_only'):
                     return
                 else:
                     if action.value == 1 and result[0] == 0:
-                        await db.execute("UPDATE threads SET enabled = ? WHERE guild_id = ?", (action.value, guild_id))
+                        await db.execute("INSERT OR REPLACE INTO threads (guild_id, enabled) VALUES (?, ?)", (guild_id, action.value))
                         await db.commit()
                         embed = discord.Embed(title="Auto Threads Enabled", description="Auto threads have been enabled.", color=discord.Color.green())
                     elif action.value == 0 and result[0] == 1:
