@@ -11,6 +11,7 @@ import langcodes
 import easy_pil
 import pytz
 import sympy
+import asyncpraw
 
 load_dotenv()
 
