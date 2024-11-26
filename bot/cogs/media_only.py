@@ -190,7 +190,7 @@ class MediaOnlyCog(commands.GroupCog, group_name='media_only'):
     async def set_auto_thread(self, interaction, action: Choice[int]) -> None:
         guild_id = interaction.guild_id
         async with aiosqlite.connect(modb) as db:
-            async with db.execute('SELECT enabled FROM threads WHERE guild_id = ?', (guild_id,)) as cursor:
+            async with db.execute('SELECT channel_id FROM media_only_channels WHERE guild_id = ?', (guild_id,)) as cursor:
                 result = await cursor.fetchone()
                 if not result:
                     embed = discord.Embed(title="No media only channels set up", description="Please set a media only channel before enabling auto threads.", color=discord.Color.red())
@@ -211,6 +211,12 @@ class MediaOnlyCog(commands.GroupCog, group_name='media_only'):
                         embed = discord.Embed(title="Auto Threads Already Disabled", description="Auto threads are already disabled.", color=discord.Color.yellow())
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                         
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        async with aiosqlite.connect(modb) as db:
+            await db.execute("INSERT OR REPLACE INTO threads (guild_id, enabled) VALUES (?, ?)", (guild.id, 0))
+            await db.commit()
+
     @commands.Cog.listener()
     async def on_message(self, message) -> None:
         if message.author.bot:
