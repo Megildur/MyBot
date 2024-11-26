@@ -66,6 +66,7 @@ class SyncCog(commands.Cog):
         media_only = discord.utils.get(self.bot.tree.get_commands(), name='media_only')
         fun_group = discord.utils.get(self.bot.tree.get_commands(), name='fun')
         count = discord.utils.get(self.bot.tree.get_commands(), name='count')
+        reddit_group = discord.utils.get(self.bot.tree.get_commands(), name='reddit')
         if mod_group:
             mod_commands = [cmd.name for cmd in mod_group.commands]
             print(f'Synced mod commands: {mod_commands}')
@@ -111,6 +112,11 @@ class SyncCog(commands.Cog):
             print(f'Synced count commands: {count_commands}')
         else:
             print('Count group not found')
+        if reddit_group:
+            reddit_commands = [cmd.name for cmd in reddit_group.commands]
+            print(f'Synced reddit commands: {reddit_commands}')
+        else:
+            print('Reddit group not found')
         embed = discord.Embed(title='Sync Complete', description='The bot has been synced successfully.', color=discord.Color.green())
         embed.add_field(name='**SYNCED COMMANDS**', value=f"Synced {len(synced)} command groups")
         embed.add_field(name='**GROUPS SYNCED**', value=f"Synced commands: {', '.join(all_commands)}")
@@ -132,6 +138,8 @@ class SyncCog(commands.Cog):
             embed.add_field(name=f"{len(fun_commands)} FUN COMMANDS SYNCED", value=f"Synced commands: {', '.join(fun_commands)}")
         if count:
             embed.add_field(name=f"{len(count_commands)} COUNT COMMANDS SYNCED", value=f"Synced commands: {', '.join(count_commands)}")
+        if reddit_group:
+            embed.add_field(name=f"{len(reddit_commands)} REDDIT COMMANDS SYNCED", value=f"Synced commands: {', '.join(reddit_commands)}")
         await ctx.send(embed=embed)
             
     @commands.command(name='syncg', description='Syncs the bot', hidden=True)
