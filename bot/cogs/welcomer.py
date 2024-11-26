@@ -73,7 +73,7 @@ class Welcomer(commands.GroupCog, name="welcomer"):
     async def channel_set(self, interaction: discord.Interaction, channel: discord.TextChannel):
         bot_permissions = channel.permissions_for(interaction.guild.me)
         if not bot_permissions.send_messages:
-            embed = Embed(title="Permission Error", description=f"I don't have permission to send messages in {channel.mention}. Please check my permissions.", color=discord.Color.red())
+            embed = discord.Embed(title="Permission Error", description=f"I don't have permission to send messages in {channel.mention}. Please check my permissions.", color=discord.Color.red())
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
         async with aiosqlite.connect(welcomer) as db:
