@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "aether>=0.3.37",
     "aiosqlite>=0.20.0",
+    "asyncpraw>=7.2.0",
     "deep-translator>=1.11.4",
     "discord-py>=2.4.0",
     "easy-pil>=0.4.0",

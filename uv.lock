@@ -202,6 +202,33 @@ wheels = [
 ]
 
 [[package]]
+name = "asyncpraw"
+version = "7.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "asyncprawcore" },
+    { name = "update-checker" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/07/a3/b43b12d9ca5ab84bb97b3ba08c645faa7864b949f9976e729e3584b16c7c/asyncpraw-7.2.0.tar.gz", hash = "sha256:7890414f0c5f8f3747dfe8a4a1ca3348064ef124f17b744cf0d12f8e202d38cd", size = 9701159 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ac/7c/600e710a9df7182bb3d5923ea06b4bf7dfdce84b03a2240a30eb5dcfb3b6/asyncpraw-7.2.0-py3-none-any.whl", hash = "sha256:817a4881ce84bda17a207f93156419825c7934b227244a8f05bdfcf557134181", size = 164902 },
+]
+
+[[package]]
+name = "asyncprawcore"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "yarl" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1e/0a/45dfc8c3b91d74f646817db3e89baecbd963a8374e2a8a33f2eb83c7e398/asyncprawcore-2.4.0.tar.gz", hash = "sha256:3a3359e5cd1ebe61d544a09d4b5eca7b16edfd17de07081a8415fc794f7bb62e", size = 18072 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/a0/a1f216c7ad7fd94482242eb92d6903c0ed5f3340436b952db2a42d2eddeb/asyncprawcore-2.4.0-py3-none-any.whl", hash = "sha256:3fe0f85d783ad0fd2a5d68d219b576bdbe04260ad7195c8a035d8724f57cfa45", size = 19741 },
+]
+
+[[package]]
 name = "attrs"
 version = "24.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2089,6 +2116,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "aether" },
     { name = "aiosqlite" },
+    { name = "asyncpraw" },
     { name = "deep-translator" },
     { name = "discord-py" },
     { name = "easy-pil" },
@@ -2103,6 +2131,7 @@ dependencies = [
 requires-dist = [
     { name = "aether", specifier = ">=0.3.37" },
     { name = "aiosqlite", specifier = ">=0.20.0" },
+    { name = "asyncpraw", specifier = ">=7.2.0" },
     { name = "deep-translator", specifier = ">=1.11.4" },
     { name = "discord-py", specifier = ">=2.4.0" },
     { name = "easy-pil", specifier = ">=0.4.0" },
@@ -2604,6 +2633,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e1/34/943888654477a574a86a98e9896bae89c7aa15078ec29f490fef2f1e5384/tzdata-2024.2.tar.gz", hash = "sha256:7d85cc416e9382e69095b7bdf4afd9e3880418a2413feec7069d533d6b4e31cc", size = 193282 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a6/ab/7e5f53c3b9d14972843a647d8d7a853969a58aecc7559cb3267302c94774/tzdata-2024.2-py2.py3-none-any.whl", hash = "sha256:a48093786cdcde33cad18c2555e8532f34422074448fbc874186f0abd79565cd", size = 346586 },
+]
+
+[[package]]
+name = "update-checker"
+version = "0.18.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5c/0b/1bec4a6cc60d33ce93d11a7bcf1aeffc7ad0aa114986073411be31395c6f/update_checker-0.18.0.tar.gz", hash = "sha256:6a2d45bb4ac585884a6b03f9eade9161cedd9e8111545141e9aa9058932acb13", size = 6699 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0c/ba/8dd7fa5f0b1c6a8ac62f8f57f7e794160c1f86f31c6d0fb00f582372a3e4/update_checker-0.18.0-py3-none-any.whl", hash = "sha256:cbba64760a36fe2640d80d85306e8fe82b6816659190993b7bdabadee4d4bbfd", size = 7008 },
 ]
 
 [[package]]
