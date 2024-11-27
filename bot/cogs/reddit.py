@@ -3,11 +3,19 @@ from discord.ext import commands
 from discord import app_commands
 import random
 import asyncpraw as praw
+import os
+import dotenv
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SECRET = str(os.getenv('SECRET'))
+SCRIPT = str(os.getenv('SCRIPT'))
 
 class Reddit(commands.GroupCog, group_name="reddit"):
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.reddit = praw.Reddit(client_id="I_12nsGwDzrIlJjzgZ26vA", client_secret="5yfhLBJ8VP7MN2n27grjNUvDtJVKog", user_agent="script:Botzilla:v1.0 (by u/Same_Doubt_6585)")
+        self.reddit = praw.Reddit(client_id=SCRIPT, client_secret=SECRET, user_agent="script:Botzilla:v1.0 (by u/Same_Doubt_6585)")
 
     @app_commands.command(name="meme", description="Get a random meme from Reddit")
     @app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
