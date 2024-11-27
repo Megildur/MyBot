@@ -19,7 +19,6 @@ class Welcomer(commands.GroupCog, name="welcomer"):
                 "CREATE TABLE IF NOT EXISTS wlcmer (guild_id INTEGER, channel_id INTEGER, message TEXT, image INTEGER, role_id INTEGER, color TEXT, PRIMARY KEY (guild_id))"
             )
             await db.commit()
-            await db.close()
             
     @commands.Cog.listener()
     async def on_guild_join(self, guild):

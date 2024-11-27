@@ -32,7 +32,6 @@ class JoinToCreateCog(commands.GroupCog, group_name="join_to_create"):
                 )
             ''')
             await db.commit()
-            await db.close()
 
     @app_commands.command(
         name='add', 
