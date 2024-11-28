@@ -34,6 +34,14 @@ class SyncCog(commands.Cog):
                 retry_after = f"{retry_after // 60} minutes"
             else:
                 retry_after = f"{retry_after // 3600} hours"
+            if interaction.data.get("name") == "daily":
+                embed = discord.Embed(
+                    title="Daily",
+                    description=f"You have already claimed your daily reward. Please try again in {retry_after}.",
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
             embed = discord.Embed(
                 title="Command Cooldown",
                 description=f"This command is on cooldown. Please try again in {retry_after}.",
@@ -67,6 +75,7 @@ class SyncCog(commands.Cog):
         fun_group = discord.utils.get(self.bot.tree.get_commands(), name='fun')
         count = discord.utils.get(self.bot.tree.get_commands(), name='count')
         reddit_group = discord.utils.get(self.bot.tree.get_commands(), name='reddit')
+        economy_group = discord.utils.get(self.bot.tree.get_commands(), name='economy')
         if mod_group:
             mod_commands = [cmd.name for cmd in mod_group.commands]
             print(f'Synced mod commands: {mod_commands}')
@@ -117,6 +126,11 @@ class SyncCog(commands.Cog):
             print(f'Synced reddit commands: {reddit_commands}')
         else:
             print('Reddit group not found')
+        if economy_group:
+            economy_commands = [cmd.name for cmd in economy_group.commands]
+            print(f'Synced economy commands: {economy_commands}')
+        else:
+            print('Economy group not found')
         embed = discord.Embed(title='Sync Complete', description='The bot has been synced successfully.', color=discord.Color.green())
         embed.add_field(name='**SYNCED COMMANDS**', value=f"Synced {len(synced)} command groups")
         embed.add_field(name='**GROUPS SYNCED**', value=f"Synced commands: {', '.join(all_commands)}")
@@ -140,6 +154,8 @@ class SyncCog(commands.Cog):
             embed.add_field(name=f"{len(count_commands)} COUNT COMMANDS SYNCED", value=f"Synced commands: {', '.join(count_commands)}")
         if reddit_group:
             embed.add_field(name=f"{len(reddit_commands)} REDDIT COMMANDS SYNCED", value=f"Synced commands: {', '.join(reddit_commands)}")
+        if economy_group:
+            embed.add_field(name=f"{len(economy_commands)} ECONOMY COMMANDS SYNCED", value=f"Synced commands: {', '.join(economy_commands)}")
         await ctx.send(embed=embed)
             
     @commands.command(name='syncg', description='Syncs the bot', hidden=True)
