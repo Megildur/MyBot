@@ -6,6 +6,10 @@ import easy_pil
 import random
 import aiosqlite
 from bot.utils.mod_helpers import bot_can_moderate_roles
+from discord import ChannelType
+from discord.app_commands import AppCommandChannel, AppCommandThread
+from discord.ui import ChannelSelect, RoleSelect
+from bot.utils.paginator import ButtonPaginator
 
 welcomer = "data/welcomer.db"
 
@@ -66,68 +70,103 @@ class Welcomer(commands.GroupCog, name="welcomer"):
         else:
             await welcome_channel.send(data[1].format(_mention=member.mention, _name=member.name), file=img_file)
 
-    @app_commands.command(name="channel_set", description="Set welcome channel")
-    @app_commands.describe(channel="Channel to set")
+    @app_commands.command(name="setup", description="Setup the welcomer")
     @app_commands.default_permissions(manage_guild=True)
-    async def channel_set(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        bot_permissions = channel.permissions_for(interaction.guild.me)
-        if not bot_permissions.send_messages:
-            embed = discord.Embed(title="Permission Error", description=f"I don't have permission to send messages in {channel.mention}. Please check my permissions.", color=discord.Color.red())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
+    async def welcomer_setup(self, interaction: discord.Interaction) -> None:
         async with aiosqlite.connect(welcomer) as db:
-            await db.execute("UPDATE wlcmer SET channel_id = ? WHERE guild_id = ?", (channel.id, interaction.guild_id))
-            await db.commit()
-            await db.close()
-            embed = discord.Embed(title="Welcome Channel Set", description=f"Welcomer is now enabled! Welcome channel has been set to {channel.mention}!", color=discord.Color.green())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name="channel_remove", description="Remove welcome channel")
-    @app_commands.default_permissions(manage_guild=True)
-    async def channel_remove(self, interaction: discord.Interaction):
-        async with aiosqlite.connect(welcomer) as db:
-            async with db.execute("SELECT channel_id FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
-                data = await cursor.fetchone()
-        if data[0] == 0:
-            embed = discord.Embed(title="Welcome Channel Not Set", description="Welcomer is not enabled! Please set a welcome channel first!", color=discord.Color.red())
-        else:
-            await db.execute("UPDATE wlcmer SET channel_id = ? WHERE guild_id = ?", (0, interaction.guild_id))
-            await db.commit()
-            await db.close()
-            embed = discord.Embed(title="Welcome Channel Removed", description=f"Welcomer is now disabled! Welcome channel has been removed!", color=discord.Color.red())
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name="auto_role_set", description="Set auto role")
-    @app_commands.describe(role="Role to set")
-    @app_commands.default_permissions(manage_guild=True)
-    async def auto_role_set(self, interaction: discord.Interaction, role: discord.Role):
-        if not bot_can_moderate_roles(role):
-            embed = discord.Embed(title="Auto Role Set", description=f"I don't have permission to assign {role.mention} to new members", color=discord.Color.red())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        async with aiosqlite.connect(welcomer) as db:
-            await db.execute("UPDATE wlcmer SET role_id = ? WHERE guild_id = ?", (role.id, interaction.guild_id))
-            await db.commit()
-            await db.close()
-            embed = discord.Embed(title="Auto Role Set", description=f"Auto role has been set to {role.mention}", color=discord.Color.green())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name="autorole_disable", description="Disable auto role")
-    @app_commands.default_permissions(manage_guild=True)
-    async def autorole_disable(self, interaction: discord.Interaction):
-        async with aiosqlite.connect(welcomer) as db:
-            async with db.execute("SELECT role_id FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
-                data = await cursor.fetchone()
-            if data[0] == 0:
-                embed = discord.Embed(title="Auto Role Not Set", description="Auto role is not enabled! Please set a auto role first!", color=discord.Color.red())
+            cursor = await db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,))
+            row = await cursor.fetchone()
+            if row is None:
+                embed = discord.Embed(title="Welcome Settings", description="No settings found", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+            channel_id = row[0]
+            role_id = row[1]
+            message = row[2]
+            image = row[3]
+            color = row[4]
+            if channel_id == 0:
+                channel_name = "Not Set"
             else:
-                await db.execute("UPDATE wlcmer SET role_id = ? WHERE guild_id = ?", (0, interaction.guild_id))
-                await db.commit()
-                await db.close()
-                embed = discord.Embed(title="Auto Role Disabled", description=f"Auto role has been disabled", color=discord.Color.green())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+                channel = interaction.guild.get_channel(channel_id)
+                if channel is None:
+                    channel_name = "Not Set"
+                else:
+                    channel_name = channel.mention
+            if role_id == "0":
+                role_name = "Not Set"
+            else:
+                role = interaction.guild.get_role(role_id)
+                if role is None:
+                    role_name = "Not Set"
+                else:
+                    role_name = role.mention
+            if message == "0":
+                message_text = "Not Set"
+            else:
+                message_text = message
+            if image == 0:
+                image = "Default"
+            else:
+                image = "Custom"
+            if color == "0":
+                color_text = "white"
+            else:
+                color_text = color
+            embed = discord.Embed(title="Welcome Settings", description=f"Channel: {channel_name}\nAuto-Role: {role_name}\nWelcome Message: {message_text}\nWecome Card Image: {image}\nImage Text Color: {color_text}", color=discord.Color.green())
+            embed.set_thumbnail(url=interaction.guild.icon.url)
+            embed.add_field(name="Please use the buttons below to change the settings.", value="Make sure you set a channel to make sure the welcomer is enabled")
+            embed.set_footer(text="Please use '/welcomer image_add' to upload custom welcome images or '/welcomer image_remove' to remove an image. You can set more than one image and they will be chosen from randomly")
+            await interaction.response.send_message(embed=embed, ephemeral=True, view=WelcomerView(self.bot))
 
-    @app_commands.command(name="add_custom_welcome_image", description="Add custom welcome image")
+    async def welcomer_embed(self, interaction: discord.Interaction) -> None:
+        async with aiosqlite.connect(welcomer) as db:
+            cursor = await db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,))
+            row = await cursor.fetchone()
+            if row is None:
+                embed = discord.Embed(title="Welcome Settings", description="No settings found", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+            channel_id = row[0]
+            role_id = row[1]
+            message = row[2]
+            image = row[3]
+            color = row[4]
+            if channel_id == 0:
+                channel_name = "Not Set"
+            else:
+                channel = interaction.guild.get_channel(channel_id)
+                if channel is None:
+                    channel_name = "Not Set"
+                else:
+                    channel_name = channel.mention
+            if role_id == "0":
+                role_name = "Not Set"
+            else:
+                role = interaction.guild.get_role(role_id)
+                if role is None:
+                    role_name = "Not Set"
+                else:
+                    role_name = role.mention
+            if message == "0":
+                message_text = "Not Set"
+            else:
+                message_text = message
+            if image == 0:
+                image = "Default"
+            else:
+                image = "Custom"
+            if color == "0":
+                color_text = "white"
+            else:
+                color_text = color
+            embed = discord.Embed(title="Welcome Settings", description=f"Channel: {channel_name}\nAuto-Role: {role_name}\nWelcome Message: {message_text}\nWecome Card Image: {image}\nImage Text Color: {color_text}", color=discord.Color.green())
+            embed.set_thumbnail(url=interaction.guild.icon.url)
+            embed.add_field(name="Please use the buttons below to change the settings.", value="Make sure you set a channel to make sure the welcomer is enabled")
+            embed.set_footer(text="Please use '/welcomer image_add' to upload custom welcome images or '/welcomer image_remove' to remove an image. You can set more than one image and they will be chosen from randomly")
+            await interaction.response.edit_message(embed=embed, view=WelcomerView(self.bot))
+
+    @app_commands.command(name="image_add", description="Add custom welcome image")
     @app_commands.describe(image="Image to add")
     @app_commands.default_permissions(manage_guild=True)
     async def add_custom_welcome_image(self, interaction: discord.Interaction, image: discord.Attachment):
@@ -154,10 +193,9 @@ class Welcomer(commands.GroupCog, name="welcomer"):
         async with aiosqlite.connect(welcomer) as db:
             await db.execute("UPDATE wlcmer SET image = ? WHERE guild_id = ?", (1, interaction.guild_id))
             await db.commit()
-            await db.close()
             await interaction.followup.send(embed=embed, ephemeral=True, file=file)
 
-    @app_commands.command(name="remove_custom_welcome_image", description="Remove custom welcome image")
+    @app_commands.command(name="image_remove", description="Remove custom welcome image")
     @app_commands.default_permissions(manage_guild=True)
     async def remove_custom_welcome_image(self, interaction: discord.Interaction):
         images = [image for image in os.listdir(f"./data/images/{interaction.guild_id}")]
@@ -165,76 +203,13 @@ class Welcomer(commands.GroupCog, name="welcomer"):
             embed = discord.Embed(title="Custom Welcome Image", description="No custom welcome image found", color=discord.Color.red())
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        if len(images) == 1:
-            os.remove(f"./data/images/{interaction.guild_id}/{images[0]}")
-            embed = discord.Embed(title="Custom Welcome Image", description="Custom welcome image removed", color=discord.Color.green())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            async with aiosqlite.connect(welcomer) as db:
-                await db.execute("UPDATE wlcmer SET image = ? WHERE guild_id = ?", (0, interaction.guild_id))
-                await db.commit()
-                await db.close()
-            return
+        async with aiosqlite.connect(welcomer) as db:
+            await db.execute("UPDATE wlcmer SET image = ? WHERE guild_id = ?", (0, interaction.guild_id))
+            await db.commit()
         for image in images:
-            embed = discord.Embed(title="Custom Welcome Image", description="Please select an image to remove", color=discord.Color.green())
-            file = discord.File(f"./data/images/{interaction.guild_id}/{image}", filename=image)
-            embed.set_image(url=f"attachment://{image}")
-            view = None
-            pass
-
-    @app_commands.command(name="image_text_color", description="Set welcome image text color")
-    @app_commands.describe(color="Color to set (must be hex e.g. #ff0000)")
-    @app_commands.default_permissions(manage_guild=True)
-    async def set_image_text_color(self, interaction: discord.Interaction, color: str):
-        if not color.startswith("#"):
-            embed = discord.Embed(title="Image Text Color", description="Color must be in hex format", color=discord.Color.red())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        if len(color) != 7:
-            embed = discord.Embed(title="Image Text Color", description="Color must be in hex format", color=discord.Color.red())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        async with aiosqlite.connect(welcomer) as db:
-            await db.execute("UPDATE wlcmer SET color = ? WHERE guild_id = ?", (color, interaction.guild_id))
-            await db.commit()
-            await db.close()
-            embed = discord.Embed(title="Image Text Color", description=f"Image text color has been set to: {color}", color=discord.Color.green())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name="reset_image_text_color", description="Reset welcome image text color to white")
-    @app_commands.default_permissions(manage_guild=True)
-    async def reset_image_text_color(self, interaction: discord.Interaction):
-        async with aiosqlite.connect(welcomer) as db:
-            await db.execute("UPDATE wlcmer SET color = ? WHERE guild_id = ?", ("#FFFFFF", interaction.guild_id))
-            await db.commit()
-            await db.close()
-            embed = discord.Embed(title="Image Text Color", description="Image text color has been reset to white", color=discord.Color.green())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name="message_set", description="Set welcome message")
-    @app_commands.describe(message="Message to set")
-    @app_commands.default_permissions(manage_guild=True)
-    async def message_set(self, interaction: discord.Interaction, message: str):
-        async with aiosqlite.connect(welcomer) as db:
-            async with db.execute("SELECT message FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
-                data = await cursor.fetchone()
-        if data[0] == "0":
-            embed = discord.Embed(title="Custom Welcome Message Not Set", description=f"Custom welcome message is not enabled! Please set a custom welcome message first!", color=discord.Color.red())
-        else:
-            await db.execute("UPDATE wlcmer SET message = ? WHERE guild_id = ?", (message, interaction.guild_id))
-            await db.commit()
-            await db.close()
-            embed = discord.Embed(title="Custom Welcome Message Set", description=f"Custom welcome message has been set to: {message}", color=discord.Color.green())
+            os.remove(f"./data/images/{interaction.guild_id}/{image}")
+            embed = discord.Embed(title="Custom Welcome Image", description="Custom welcome images removed", color=discord.Color.green())
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name="message_remove", description="Remove welcome message")
-    @app_commands.default_permissions(manage_guild=True)
-    async def message_remove(self, interaction: discord.Interaction):
-        async with aiosqlite.connect(welcomer) as db:
-            await db.execute("UPDATE wlcmer SET message = ? WHERE guild_id = ?", (0, interaction.guild_id))
-            await db.commit()
-            await db.close()
-            embed = discord.Embed(title="Custom Welcome Message Removed", description=f"Custom welcome message has been removed and reset to default.", color=discord.Color.green())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="current_settings", description="View current settings")
     @app_commands.default_permissions(manage_guild=True)
@@ -259,7 +234,7 @@ class Welcomer(commands.GroupCog, name="welcomer"):
                     channel_name = "Not Set"
                 else:
                     channel_name = channel.mention
-            if role_id == 0:
+            if role_id == "0":
                 role_name = "Not Set"
             else:
                 role = interaction.guild.get_role(role_id)
@@ -272,16 +247,160 @@ class Welcomer(commands.GroupCog, name="welcomer"):
             else:
                 message_text = message
             if image == 0:
-                image_text = "Default"
+                image = "Default"
             else:
-                image_text = "Custom"
+                image = "Custom"
             if color == "0":
                 color_text = "white"
             else:
                 color_text = color
-            embed = discord.Embed(title="Welcome Settings", description=f"Channel: {channel_name}\nAuto-Role: {role_name}\nWelcome Message: {message_text}\nWecome Card Image: {image_text}\nImage Text Color: {color_text}", color=discord.Color.green())
+            embed = discord.Embed(title="Welcome Settings", description=f"Channel: {channel_name}\nAuto-Role: {role_name}\nWelcome Message: {message_text}\nWecome Card Image: {image}\nImage Text Color: {color_text}", color=discord.Color.green())
             await interaction.response.send_message(embed=embed, ephemeral=True)
-                
+
+class WelcomerView(discord.ui.View):
+    def __init__(self, bot) -> None:
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    @discord.ui.button(label="Change Channel", style=discord.ButtonStyle.blurple, custom_id="welcomer_channel", row=0, emoji="📝")
+    async def welcomer_channel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        embed = discord.Embed(title="Welcomer Channel", description="Please select the channel you want to set as the welcomer channel.", color=discord.Color.green())
+        embed.set_thumbnail(url=interaction.guild.icon.url)
+        await interaction.response.edit_message(embed=embed, view=WelcomerChannel(self.bot))
+
+    @discord.ui.button(label="Disable Channel", style=discord.ButtonStyle.red, custom_id="welcomer_disable", row=0, emoji="🚫")
+    async def welcomer_disable(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        async with aiosqlite.connect(welcomer) as db:
+            async with db.execute("SELECT channel_id FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                data = await cursor.fetchone()
+            if data[0] == 0:
+                embed = discord.Embed(title="Welcome Channel Not Set", description="Welcomer is not enabled! Please set a welcome channel first!", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await db.execute("UPDATE wlcmer SET channel_id = ? WHERE guild_id = ?", (0, interaction.guild_id))
+                await db.commit()
+                await Welcomer(self.bot).welcomer_embed(interaction)
+
+    @discord.ui.button(label="Change Auto-Role", style=discord.ButtonStyle.blurple, custom_id="welcomer_role", emoji="🎭", row=1)
+    async def welcomer_role(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        embed = discord.Embed(title="Welcomer Role", description="Please select the role you want to set as the Autorole.", color=discord.Color.green())
+        embed.set_thumbnail(url=interaction.guild.icon.url)
+        await interaction.response.edit_message(embed=embed, view=WelcomerRole(self.bot))
+
+    @discord.ui.button(label="Disable Auto-Role", style=discord.ButtonStyle.red, custom_id="welcomer_disable_role", emoji="🚫", row=1)
+    async def autorole_disable(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        async with aiosqlite.connect(welcomer) as db:
+            async with db.execute("SELECT role_id FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                data = await cursor.fetchone()
+            if data[0] == 0:
+                embed = discord.Embed(title="Auto Role Not Set", description="Auto role is not enabled! Please set a auto role first!", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await db.execute("UPDATE wlcmer SET role_id = ? WHERE guild_id = ?", (0, interaction.guild_id))
+                await db.commit()
+                await Welcomer(self.bot).welcomer_embed(interaction)
+
+    @discord.ui.button(label="Change Custom Welcome Message", style=discord.ButtonStyle.blurple, custom_id="welcomer_message", emoji="📝", row=2)
+    async def welcomer_message(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_modal(WelcomerMessage(self.bot))
+
+    @discord.ui.button(label="Disable Custom Welcome Message", style=discord.ButtonStyle.red, custom_id="welcomer_disable_message", emoji="🚫", row=2)
+    async def welcomer_disable_message(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        async with aiosqlite.connect(welcomer) as db:
+            async with db.execute("SELECT message FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                data = await cursor.fetchone()
+            if data[0] == "0":
+                embed = discord.Embed(title="Custom Welcome Message Not Set", description="Custom welcome message is not enabled! Please set a custom welcome message first!", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+            await db.execute("UPDATE wlcmer SET message = ? WHERE guild_id = ?", (0, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
+
+    @discord.ui.button(label="Change Custom Welcome Card Image Text Colors", style=discord.ButtonStyle.blurple, custom_id="welcomer_color", emoji="🎨", row=3)
+    async def welcomer_color(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_modal(WelcomerColor(self.bot))
+
+    @discord.ui.button(label="Disable Custom Welcome Card Image Text Colors", style=discord.ButtonStyle.red, custom_id="welcomer_disable_color", emoji="🚫", row=3)
+    async def welcomer_disable_color(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        async with aiosqlite.connect(welcomer) as db:
+            async with db.execute("SELECT color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                data = await cursor.fetchone()
+            if data[0] == "0":
+                embed = discord.Embed(title="Custom Welcome Card Image Text Colors Not Set", description="Custom welcome card image text colors are not enabled! Please set a custom welcome card image text colors first!", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+            await db.execute("UPDATE wlcmer SET color = ? WHERE guild_id = ?", (0, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
+        
+class WelcomerChannel(discord.ui.View):
+    def __init__(self, bot) -> None:
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    @discord.ui.select(cls=ChannelSelect, placeholder="Select a channel", custom_id="welcomer_channel_select", min_values=1, max_values=1, channel_types=[discord.ChannelType.text])
+    async def welcomer_channel_select(self, interaction: discord.Interaction, select: list[AppCommandChannel]) -> None:
+        channel = interaction.guild.get_channel(select.values[0].id)
+        bot_permissions = channel.permissions_for(interaction.guild.me)
+        if not bot_permissions.send_messages:
+            embed = discord.Embed(title="Permission Error", description=f"I don't have permission to send messages in {channel.mention}. Please check my permissions.", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        async with aiosqlite.connect(welcomer) as db:
+            await db.execute("UPDATE wlcmer SET channel_id = ? WHERE guild_id = ?", (channel.id, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
+
+class WelcomerRole(discord.ui.View):
+    def __init__(self, bot) -> None:
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    @discord.ui.select(cls=RoleSelect, placeholder="Select a role", custom_id="welcomer_role_select", min_values=1, max_values=1)
+    async def auto_role_set(self, interaction: discord.Interaction, select: RoleSelect) -> None:
+        role = select.values[0]
+        if not bot_can_moderate_roles(role):
+            embed = discord.Embed(title="Auto Role Set", description=f"I don't have permission to assign {role.mention} to new members", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        async with aiosqlite.connect(welcomer) as db:
+            await db.execute("UPDATE wlcmer SET role_id = ? WHERE guild_id = ?", (role.id, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
+
+class WelcomerMessage(discord.ui.Modal):
+    def __init__(self, bot) -> None:
+        super().__init__(title="Custom Welcome Message" , timeout=None)
+        self.bot = bot
+    message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long, placeholder="Enter the message you want to send", required=True, max_length=2000)
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        message = self.message.value
+        async with aiosqlite.connect(welcomer) as db:
+            await db.execute("UPDATE wlcmer SET message = ? WHERE guild_id = ?", (message, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
+
+class WelcomerColor(discord.ui.Modal):
+    def __init__(self, bot) -> None:
+        super().__init__(title="Custom Image Text Colors", timeout=None)
+        self.bot = bot
+
+    color = discord.ui.TextInput(label="Color", style=discord.TextStyle.short, placeholder="Enter the color you want to use", required=True, max_length=7)
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        color = self.color.value
+        if not color.startswith("#"):
+            embed = discord.Embed(title="Image Text Color", description="Color must be in hex format", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        if len(color) != 7:
+            embed = discord.Embed(title="Image Text Color", description="Color must be in hex format", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        async with aiosqlite.connect(welcomer) as db:
+            await db.execute("UPDATE wlcmer SET color = ? WHERE guild_id = ?", (color, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
                     
 async def setup(bot):
     await bot.add_cog(Welcomer(bot))
