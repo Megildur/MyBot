@@ -18,7 +18,7 @@ load_dotenv()
 reminders = "data/reminders.db"
 notes = "data/notes.db"
 
-class Utility(commands.GroupCog, name="utility"):
+class Utility(commands.GroupCog, group_name="utility"):
     def __init__(self, bot) -> None:
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(
@@ -30,31 +30,10 @@ class Utility(commands.GroupCog, name="utility"):
     async def cog_load(self) -> None:
         self.load_reminders.start()
         await self.notes_table()
-        tree = self.bot.tree
-        self._old_tree_error = tree.on_error
-        tree.on_error = self.tree_on_error
         
     async def cog_unload(self) -> None:
-        tree = self.bot.tree
-        tree.on_error = self._old_tree_error
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
-    async def tree_on_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError
-    ) -> None:
-        if isinstance(error, app_commands.CommandOnCooldown):
-            retry_after = int(error.retry_after)
-            embed = discord.Embed(
-                title="Command Cooldown",
-                description=f"This command is on cooldown. Please try again in {retry_after} seconds.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            print(f"An error occurred: {error}")
-            await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
 
     async def notes_table(self) -> None:
         async with aiosqlite.connect(notes) as db:
