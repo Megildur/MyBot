@@ -29,22 +29,22 @@ class SyncCog(commands.Cog):
         if isinstance(error, app_commands.CommandOnCooldown):
             retry_after = int(error.retry_after)
             if retry_after <= 60:
-                retry_after = f"{retry_after} seconds"
+                retry_after1 = f"{retry_after} seconds"
             elif retry_after <= 3600:
-                retry_after = f"{retry_after // 60} minutes"
+                retry_after1 = f"{retry_after // 60} minutes"
             else:
-                retry_after = f"{retry_after // 3600} hours"
-            if interaction.data.get("name") == "daily":
+                retry_after1 = f"{retry_after // 3600} hours"
+            if interaction.command.name == "daily":
                 embed = discord.Embed(
                     title="Daily",
-                    description=f"You have already claimed your daily reward. Please try again in {retry_after}.",
+                    description=f"You have already claimed your daily reward. Please try again in {retry_after1}.",
                     color=discord.Color.red()
                 )
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
             embed = discord.Embed(
                 title="Command Cooldown",
-                description=f"This command is on cooldown. Please try again in {retry_after}.",
+                description=f"This command is on cooldown. Please try again in {retry_after1}.",
                 color=discord.Color.red()
             )
             try:
@@ -54,9 +54,6 @@ class SyncCog(commands.Cog):
                     await interaction.response.send_message(embed=embed, ephemeral=True)
             except discord.HTTPException:
                 print(f"Failed to send cooldown message for {interaction.user.name}#{interaction.user.discriminator}")
-        else:
-            print(f"An error occurred: {error}")
-            await interaction.response.send_message(f"An error occurred: {error}", ephemeral=True)
 
     @commands.command(name='sync', description='Syncs the bot', hidden=True)
     @commands.is_owner()
