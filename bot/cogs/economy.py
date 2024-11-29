@@ -30,7 +30,7 @@ class Economy(commands.GroupCog, group_name="economy"):
             balance = await cursor.fetchone()
             if balance is None:
                 await self.prime_db(interaction.user.id)
-            embed = discord.Embed(title="Balance", description=f"Your balance is {balance[0]} coins", color=discord.Color.green())
+            embed = discord.Embed(title="Wallet Balance:", description=f"Your wallet balance is {balance[0]} coins 🪙", color=discord.Color.green())
             embed.set_thumbnail(url=interaction.user.avatar.url)
             await interaction.response.send_message(embed=embed)
 
@@ -42,11 +42,12 @@ class Economy(commands.GroupCog, group_name="economy"):
             balance = await cursor.fetchone()
             if balance is None:
                 await self.prime_db(interaction.user.id)
+                balance = (0,)
             reward = random.randint(100, 500)
             await db.execute("UPDATE economy SET balance = balance + ? WHERE user_id = ?", (reward, interaction.user.id))
             await db.commit()
-            embed = discord.Embed(title="Daily Reward", description=f"You claimed your daily reward of {reward} coins!", color=discord.Color.green())
-            embed.add_field(name="New Balance:", value=f"{balance[0] + reward} coins")
+            embed = discord.Embed(title="Daily Reward🤑", description=f"You claimed your daily reward of {reward} coins 🪙!", color=discord.Color.green())
+            embed.add_field(name="New Wallet Balance:", value=f"{balance[0] + reward} coins 🪙")
             embed.set_thumbnail(url=interaction.user.avatar.url)
             await interaction.response.send_message(embed=embed)
 
@@ -57,6 +58,7 @@ class Economy(commands.GroupCog, group_name="economy"):
             balance = await cursor.fetchone()
             if balance is None:
                 await self.prime_db(interaction.user.id)
+                balance = (0,)
             if amount > balance[0]:
                 embed = discord.Embed(title="Deposit", description="You don't have enough coins to deposit that much.", color=discord.Color.red())
                 embed.set_thumbnail(url=interaction.user.avatar.url)
@@ -64,9 +66,9 @@ class Economy(commands.GroupCog, group_name="economy"):
                 return
             await db.execute("UPDATE economy SET balance = balance - ?, bank = bank + ? WHERE user_id = ?", (amount, amount, interaction.user.id))
             await db.commit()
-            embed = discord.Embed(title="Deposit", description=f"You deposited {amount} coins into your bank.", color=discord.Color.green())
-            embed.add_field(name="New Wallet Balance:", value=f"{balance[0] - amount} coins")
-            embed.add_field(name="New Bank Balance:", value=f"{balance[0] + amount} coins")
+            embed = discord.Embed(title="Deposit 🏧", description=f"You deposited {amount} coins into your bank 🏦.", color=discord.Color.green())
+            embed.add_field(name="New Wallet Balance:", value=f"{balance[0] - amount} coins 🪙")
+            embed.add_field(name="New Bank Balance:", value=f"{balance[0] + amount} coins 💳")
             embed.set_thumbnail(url=interaction.user.avatar.url)
             await interaction.response.send_message(embed=embed)
 
@@ -77,16 +79,17 @@ class Economy(commands.GroupCog, group_name="economy"):
             bank = await cursor.fetchone()
             if bank is None:
                 await self.prime_db(interaction.user.id)
+                bank = (0,)
             if amount > bank[0]:
-                embed = discord.Embed(title="Withdraw", description="You don't have enough coins in your bank to withdraw that much.", color=discord.Color.red())
+                embed = discord.Embed(title="Withdrawal", description="You don't have enough coins in your bank to withdraw that much.", color=discord.Color.red())
                 embed.set_thumbnail(url=interaction.user.avatar.url)
                 await interaction.response.send_message(embed=embed)
                 return
             await db.execute("UPDATE economy SET balance = balance + ?, bank = bank - ? WHERE user_id = ?", (amount, amount, interaction.user.id))
             await db.commit()
-            embed = discord.Embed(title="Withdraw", description=f"You withdrew {amount} coins from your bank.", color=discord.Color.green())
-            embed.add_field(name="New Wallet Balance:", value=f"{balance[0] + amount} coins")
-            embed.add_field(name="New Bank Balance:", value=f"{balance[0] - amount} coins")
+            embed = discord.Embed(title="Withdrawal 🏧", description=f"You withdrew {amount} coins from your bank 🏦.", color=discord.Color.green())
+            embed.add_field(name="New Wallet Balance:", value=f"{balance[0] + amount} coins 🪙")
+            embed.add_field(name="New Bank Balance:", value=f"{balance[0] - amount} coins 💳")
             embed.set_thumbnail(url=interaction.user.avatar.url)
             await interaction.response.send_message(embed=embed)
 
@@ -97,6 +100,7 @@ class Economy(commands.GroupCog, group_name="economy"):
             balance = await cursor.fetchone()
             if balance is None:
                 await self.prime_db(interaction.user.id)
+                balance = (0,)
             if amount > balance[0]:
                 embed = discord.Embed(title="Give", description="You don't have enough coins to give that much.", color=discord.Color.red())
                 embed.set_thumbnail(url=interaction.user.avatar.url)
@@ -105,8 +109,8 @@ class Economy(commands.GroupCog, group_name="economy"):
             await db.execute("UPDATE economy SET balance = balance - ? WHERE user_id = ?", (amount, interaction.user.id))
             await db.execute("UPDATE economy SET balance = balance + ? WHERE user_id = ?", (amount, user.id))
             await db.commit()
-            embed = discord.Embed(title="Give", description=f"You gave {amount} coins to {user.mention}.", color=discord.Color.green())
-            embed.add_field(name="New Wallet Balance:", value=f"{balance[0] - amount} coins")
+            embed = discord.Embed(title="Give", description=f"You gave {amount} coins 🪙 to {user.mention}.", color=discord.Color.green())
+            embed.add_field(name="New Wallet Balance:", value=f"{balance[0] - amount} coins 🪙")
             embed.set_thumbnail(url=interaction.user.avatar.url)
             await interaction.response.send_message(embed=embed)
 
@@ -117,7 +121,8 @@ class Economy(commands.GroupCog, group_name="economy"):
             bank = await cursor.fetchone()
             if bank is None:
                 await self.prime_db(interaction.user.id)
-            embed = discord.Embed(title="Bank Balance", description=f"Your bank balance is {bank[0]} coins", color=discord.Color.green())
+                bank = (0,)
+            embed = discord.Embed(title="Bank Balance 🏦", description=f"Your bank balance is {bank[0]} coins 💳", color=discord.Color.green())
             embed.set_thumbnail(url=interaction.user.avatar.url)
             await interaction.response.send_message(embed=embed)
 
@@ -144,7 +149,8 @@ class Economy(commands.GroupCog, group_name="economy"):
 
     @app_commands.command(name="shop", description="View the shop")
     async def shop(self, interaction: discord.Interaction) -> None:
-        embed = discord.Embed(title="Shop", description="Welcome to the shop! We are currently not open for buisiness while we srock items. We will keep you informed of our grand opening!", color=discord.Color.green())
+        embed = discord.Embed(title="Shop🛍️", description="Welcome to the shop! We are currently not open for buisiness while we stock items. We will keep you informed of our grand opening!", color=discord.Color.green())
+        embed.add_field(name="Items🏷️", value="Coming soon! Stay tuned!")
         embed.set_thumbnail(url=interaction.user.avatar.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
