@@ -10,6 +10,8 @@ from bot.utils.variablesmo import color_map
 modb = "data/media_only.db"
 moedb = "data/media_only_embeds.db"
 
+@app_commands.allowed_installs(guilds=True, users=False)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 class MediaOnlyCog(commands.GroupCog, group_name='media_only'):
     def __init__(self, bot) -> None:
         self.bot = bot

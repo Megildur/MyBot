@@ -7,6 +7,8 @@ from typing import Optional, Literal
 
 economy = 'data/economy.db'
 
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 class Economy(commands.GroupCog, group_name="economy"):
     def __init__(self, bot) -> None:
         self.bot = bot

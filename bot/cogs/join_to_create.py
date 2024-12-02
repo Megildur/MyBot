@@ -7,6 +7,8 @@ from bot.utils.mod_helpers import bot_has_permission
 
 jtc = "data/jtc.db"
 
+@app_commands.allowed_installs(guilds=True, users=False)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 class JoinToCreateCog(commands.GroupCog, group_name="join_to_create"):
     def __init__(self, bot) -> None:
         self.bot = bot

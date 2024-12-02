@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 persistent_data = "data/persistent_data.db"
 reports = 'data/reports.db'
 
+@app_commands.allowed_installs(guilds=True, users=False)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 class Admin(commands.GroupCog, group_name="admin"):
     def __init__(self, bot) -> None:
         self.bot = bot

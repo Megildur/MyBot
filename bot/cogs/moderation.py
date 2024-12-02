@@ -12,6 +12,8 @@ import pytz
 
 persistent_data = "data/persistent_data.db"
 
+@app_commands.allowed_installs(guilds=True, users=False)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 class Moderation(commands.GroupCog, group_name="mod"):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot

@@ -1,3 +1,4 @@
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -12,6 +13,8 @@ load_dotenv()
 SECRET = str(os.getenv('SECRET'))
 SCRIPT = str(os.getenv('SCRIPT'))
 
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 class Reddit(commands.GroupCog, group_name="reddit"):
     def __init__(self, bot) -> None:
         self.bot = bot

@@ -13,6 +13,8 @@ from bot.utils.paginator import ButtonPaginator
 
 welcomer = "data/welcomer.db"
 
+@app_commands.allowed_installs(guilds=True, users=False)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 class Welcomer(commands.GroupCog, name="welcomer"):
     def __init__(self, bot):
         self.bot = bot
@@ -32,7 +34,6 @@ class Welcomer(commands.GroupCog, name="welcomer"):
                 (guild.id, 0, 0, 0, 0, "white"),
             )
             await db.commit()
-            await db.close()
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):

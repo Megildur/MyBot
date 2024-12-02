@@ -18,6 +18,8 @@ load_dotenv()
 reminders = "data/reminders.db"
 notes = "data/notes.db"
 
+@app_commands.allowed_installs(guilds=True, users=False)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 class Utility(commands.GroupCog, group_name="utility"):
     def __init__(self, bot) -> None:
         self.bot = bot

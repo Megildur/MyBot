@@ -4,6 +4,8 @@ from discord import app_commands
 from discord import Spotify, Activity, ActivityType
 from typing import Optional
 
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 class SpotifyCog(commands.GroupCog, name="spotify"):
     def __init__(self, bot):
         self.bot = bot
