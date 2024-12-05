@@ -179,7 +179,7 @@ class Welcomer(commands.GroupCog, name="welcomer"):
                 return
             channel_id = row[0]
             role_id = row[1]
-            message = row:[2]
+            message = row[2]
             image = row[3]
             color = row[4]
             leave_channel_id = row2[0]
