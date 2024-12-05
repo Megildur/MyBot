@@ -169,10 +169,10 @@ class Welcomer(commands.GroupCog, name="welcomer"):
 
     async def welcomer_embed(self, interaction: discord.Interaction) -> None:
         async with aiosqlite.connect(welcomer) as db:
-            cursor = await db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,))
-            row = await cursor.fetchone()
-            cursor = await db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,))
-            row2 = await cursor.fetchone()
+            async with db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                row = await cursor.fetchone()
+            async with db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                row2 = await cursor.fetchone()
             if row is None:
                 embed = discord.Embed(title="Welcome Settings", description="No settings found", color=discord.Color.red())
                 await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -263,6 +263,8 @@ class Welcomer(commands.GroupCog, name="welcomer"):
     @app_commands.command(name="image_remove", description="Remove custom welcome image")
     @app_commands.default_permissions(manage_guild=True)
     async def remove_custom_welcome_image(self, interaction: discord.Interaction):
+        image_directory = f"./data/images/{interaction.guild_id}"
+        os.makedirs(image_directory, exist_ok=True)
         images = [image for image in os.listdir(f"./data/images/{interaction.guild_id}")]
         if not images:
             embed = discord.Embed(title="Custom Welcome Image", description="No custom welcome image found", color=discord.Color.red())
@@ -280,10 +282,10 @@ class Welcomer(commands.GroupCog, name="welcomer"):
     @app_commands.default_permissions(manage_guild=True)
     async def current_settings(self, interaction: discord.Interaction):
         async with aiosqlite.connect(welcomer) as db:
-            cursor = await db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,))
-            row = await cursor.fetchone()
-            cursor = await db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,))
-            row2 = await cursor.fetchone()
+            async with db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                row = await cursor.fetchone()
+            async with db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                row2 = await cursor.fetchone()
             if row is None:
                 embed = discord.Embed(title="Welcome Settings", description="No settings found", color=discord.Color.red())
                 await interaction.response.send_message(embed=embed, ephemeral=True)
