@@ -16,27 +16,36 @@ welcomer = "data/welcomer.db"
 @app_commands.allowed_installs(guilds=True, users=False)
 @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 class Welcomer(commands.GroupCog, name="welcomer"):
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         self.bot = bot
 
-    async def cog_load(self):
+    async def cog_load(self) -> None:
         async with aiosqlite.connect(welcomer) as db:
             await db.execute(
                 "CREATE TABLE IF NOT EXISTS wlcmer (guild_id INTEGER, channel_id INTEGER, message TEXT, image INTEGER, role_id INTEGER, color TEXT, PRIMARY KEY (guild_id))"
             )
             await db.commit()
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS leaver (guild_id INTEGER, channel_id INTEGER, message TEXT, PRIMARY KEY (guild_id))"
+            )
+            await db.commit()
             
     @commands.Cog.listener()
-    async def on_guild_join(self, guild):
+    async def on_guild_join(self, guild) -> None:
         async with aiosqlite.connect(welcomer) as db:
             await db.execute(
                 "INSERT OR REPLACE INTO wlcmer (guild_id, channel_id, message, image, role_id, color) VALUES (?, ?, ?, ?, ?, ?)",
-                (guild.id, 0, 0, 0, 0, "white"),
+                (guild.id, 0, 0, 0, 0, "white")
+            )
+            await db.commit()
+            await db.execute(
+                "INSERT OR REPLACE INTO leaver (guild_id, channel_id, message) VALUES (?, ?, ?)",
+                (guild.id, 0, 0)
             )
             await db.commit()
 
     @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
+    async def on_member_join(self, member: discord.Member) -> None:
         async with aiosqlite.connect(welcomer) as db:
             cursor = await db.execute("SELECT channel_id, message, image, role_id, color FROM wlcmer WHERE guild_id = ?", (member.guild.id,))
             data = await cursor.fetchone()
@@ -55,7 +64,11 @@ class Welcomer(commands.GroupCog, name="welcomer"):
             bg = easy_pil.Editor(f'./data/images/default/{random_image}').resize((1920, 1080))
         else:
             bg = easy_pil.Editor(f'./data/images/{member.guild.id}/{random_image}').resize((1920, 1080))
-        avatar_image = await easy_pil.load_image_async(str(member.avatar.url))
+        if member.avatar:
+            avatar_url = member.avatar.url
+        else:
+            avatar_url = member.default_avatar.url
+        avatar_image = await easy_pil.load_image_async(str(avatar_url))
         avatar = easy_pil.Editor(avatar_image).resize((250, 250)).circle_image()
 
         big_font = easy_pil.Font.poppins(size=90, variant="bold")
@@ -71,12 +84,31 @@ class Welcomer(commands.GroupCog, name="welcomer"):
         else:
             await welcome_channel.send(data[1].format(_mention=member.mention, _name=member.name), file=img_file)
 
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member) -> None:
+        async with aiosqlite.connect(welcomer) as db:
+            cursor = await db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (member.guild.id,))
+            data = await cursor.fetchone()
+            cursor = await db.execute("SELECT channel_id, message FROM wlcmer WHERE guild_id = ?", (member.guild.id,))
+            data2 = await cursor.fetchone()
+            if data2[0] == 0:
+                return
+            if data[0] == 0:
+                return
+            leave_channel = self.bot.get_channel(data[0])
+            if data[1] == 0:
+                await leave_channel.send(f"{member.name} has left the server!")
+            else:
+                await leave_channel.send(data[1].format(_mention=member.mention, _name=member.name))
+
     @app_commands.command(name="setup", description="Setup the welcomer")
     @app_commands.default_permissions(manage_guild=True)
     async def welcomer_setup(self, interaction: discord.Interaction) -> None:
         async with aiosqlite.connect(welcomer) as db:
             cursor = await db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,))
             row = await cursor.fetchone()
+            cursor = await db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,))
+            row2 = await cursor.fetchone()
             if row is None:
                 embed = discord.Embed(title="Welcome Settings", description="No settings found", color=discord.Color.red())
                 await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -86,6 +118,8 @@ class Welcomer(commands.GroupCog, name="welcomer"):
             message = row[2]
             image = row[3]
             color = row[4]
+            leave_channel_id = row2[0]
+            leave_message = row2[1]
             if channel_id == 0:
                 channel_name = "Not Set"
             else:
@@ -114,7 +148,20 @@ class Welcomer(commands.GroupCog, name="welcomer"):
                 color_text = "white"
             else:
                 color_text = color
+            if leave_channel_id == 0:
+                leave_channel_name = "Not Set"
+            else:
+                leave_channel = interaction.guild.get_channel(leave_channel_id)
+                if leave_channel is None:
+                    leave_channel_name = "Not Set"
+                else:
+                    leave_channel_name = leave_channel.mention
+            if leave_message == "0":
+                leave_message_text = "Default"
+            else:
+                leave_message_text = leave_message
             embed = discord.Embed(title="Welcome Settings", description=f"Channel: {channel_name}\nAuto-Role: {role_name}\nWelcome Message: {message_text}\nWecome Card Image: {image}\nImage Text Color: {color_text}", color=discord.Color.green())
+            embed.add_field(name="Leave Settings:", value=f"Leave Channel: {leave_channel_name}\nLeave Message: {leave_message_text}")
             embed.set_thumbnail(url=interaction.guild.icon.url)
             embed.add_field(name="Please use the buttons below to change the settings.", value="Make sure you set a channel to make sure the welcomer is enabled")
             embed.set_footer(text="Please use '/welcomer image_add' to upload custom welcome images or '/welcomer image_remove' to remove an image. You can set more than one image and they will be chosen from randomly")
@@ -124,15 +171,19 @@ class Welcomer(commands.GroupCog, name="welcomer"):
         async with aiosqlite.connect(welcomer) as db:
             cursor = await db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,))
             row = await cursor.fetchone()
+            cursor = await db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,))
+            row2 = await cursor.fetchone()
             if row is None:
                 embed = discord.Embed(title="Welcome Settings", description="No settings found", color=discord.Color.red())
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
             channel_id = row[0]
             role_id = row[1]
-            message = row[2]
+            message = row:[2]
             image = row[3]
             color = row[4]
+            leave_channel_id = row2[0]
+            leave_message = row2[1]
             if channel_id == 0:
                 channel_name = "Not Set"
             else:
@@ -161,7 +212,20 @@ class Welcomer(commands.GroupCog, name="welcomer"):
                 color_text = "white"
             else:
                 color_text = color
+            if leave_channel_id == 0:
+                leave_channel_name = "Not Set"
+            else:
+                leave_channel = interaction.guild.get_channel(leave_channel_id)
+                if leave_channel is None:
+                    leave_channel_name = "Not Set"
+                else:
+                    leave_channel_name = leave_channel.mention
+            if leave_message == "0":
+                leave_message_text = "Default"
+            else:
+                leave_message_text = leave_message
             embed = discord.Embed(title="Welcome Settings", description=f"Channel: {channel_name}\nAuto-Role: {role_name}\nWelcome Message: {message_text}\nWecome Card Image: {image}\nImage Text Color: {color_text}", color=discord.Color.green())
+            embed.add_field(name="Leave Settings:", value=f"Leave Channel: {leave_channel_name}\nLeave Message: {leave_message_text}")
             embed.set_thumbnail(url=interaction.guild.icon.url)
             embed.add_field(name="Please use the buttons below to change the settings.", value="Make sure you set a channel to make sure the welcomer is enabled")
             embed.set_footer(text="Please use '/welcomer image_add' to upload custom welcome images or '/welcomer image_remove' to remove an image. You can set more than one image and they will be chosen from randomly")
@@ -218,6 +282,8 @@ class Welcomer(commands.GroupCog, name="welcomer"):
         async with aiosqlite.connect(welcomer) as db:
             cursor = await db.execute("SELECT channel_id, role_id, message, image, color FROM wlcmer WHERE guild_id = ?", (interaction.guild_id,))
             row = await cursor.fetchone()
+            cursor = await db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,))
+            row2 = await cursor.fetchone()
             if row is None:
                 embed = discord.Embed(title="Welcome Settings", description="No settings found", color=discord.Color.red())
                 await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -227,6 +293,8 @@ class Welcomer(commands.GroupCog, name="welcomer"):
             message = row[2]
             image = row[3]
             color = row[4]
+            leave_channel_id = row2[0]
+            leave_message = row2[1]
             if channel_id == 0:
                 channel_name = "Not Set"
             else:
@@ -255,7 +323,20 @@ class Welcomer(commands.GroupCog, name="welcomer"):
                 color_text = "white"
             else:
                 color_text = color
+            if leave_channel_id == 0:
+                leave_channel_name = "Not Set"
+            else:
+                leave_channel = interaction.guild.get_channel(leave_channel_id)
+                if leave_channel is None:
+                    leave_channel_name = "Not Set"
+                else:
+                    leave_channel_name = leave_channel.mention
+            if leave_message == "0":
+                leave_message_text = "Default"
+            else:
+                leave_message_text = leave_message
             embed = discord.Embed(title="Welcome Settings", description=f"Channel: {channel_name}\nAuto-Role: {role_name}\nWelcome Message: {message_text}\nWecome Card Image: {image}\nImage Text Color: {color_text}", color=discord.Color.green())
+            embed.add_field(name="Leave Settings:", value=f"Leave Channel: {leave_channel_name}\nLeave Message: {leave_message_text}")
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class WelcomerView(discord.ui.View):
@@ -279,6 +360,26 @@ class WelcomerView(discord.ui.View):
                 await interaction.response.send_message(embed=embed, ephemeral=True)
             else:
                 await db.execute("UPDATE wlcmer SET channel_id = ? WHERE guild_id = ?", (0, interaction.guild_id))
+                await db.commit()
+                await Welcomer(self.bot).welcomer_embed(interaction)
+
+    @discord.ui.button(label="Enable Leave Message", style=discord.ButtonStyle.blurple, custom_id="welcomer_leave", row=0, emoji="📤")
+    async def welcomer_leave(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        embed = discord.Embed(title="Leave Message", description="Please set the channel you would like leave messages to be sent in.", color=discord.Color.green())
+        embed.set_thumbnail(url=interaction.guild.icon.url)
+        await interaction.response.edit_message(embed=embed, view=LeaveChannel(self.bot))
+
+    @discord.ui.button(label="Disable Leave Message", style=discord.ButtonStyle.red, custom_id="welcomer_leave_disable", row=0, emoji="🚫")
+    async def welcomer_leave_disable(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        async with aiosqlite.connect(welcomer) as db:
+            async with db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                data = await cursor.fetchone()
+            if data[0] == 0:
+                embed = discord.Embed(title="Leave Message Not Set", description="Leave message is not enabled! Please set a leave channel first!", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await db.execute("UPDATE leaver SET channel_id = ? WHERE guild_id = ?", (0, interaction.guild_id))
+                await db.execute("UPDATE leaver SET message = ? WHERE guild_id = ?", ("0", interaction.guild_id))
                 await db.commit()
                 await Welcomer(self.bot).welcomer_embed(interaction)
 
@@ -315,6 +416,23 @@ class WelcomerView(discord.ui.View):
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
             await db.execute("UPDATE wlcmer SET message = ? WHERE guild_id = ?", (0, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
+
+    @discord.ui.button(label="Change Custom Leave Message", style=discord.ButtonStyle.blurple, custom_id="welcomer_leave_message", emoji="📤", row=2)
+    async def welcomer_leave_message(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_modal(LeaveMessage(self.bot))
+
+    @discord.ui.button(label="Disable Custom Leave Message", style=discord.ButtonStyle.red, custom_id="welcomer_leave_disable", emoji="🚫", row=2)
+    async def welcomer_leave_disable(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        async with aiosqlite.connect(welcomer) as db:
+            async with db.execute("SELECT channel_id, message FROM leaver WHERE guild_id = ?", (interaction.guild_id,)) as cursor:
+                data = await cursor.fetchone()
+            if data[0] == 0:
+                embed = discord.Embed(title="Custom Leave Message Not Set", description="Custom leave message is not enabled! Please set a custom leave message first!", color=discord.Color.red())
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+            await db.execute("UPDATE leaver SET message = ? WHERE guild_id = ?", ("0", interaction.guild_id))
             await db.commit()
             await Welcomer(self.bot).welcomer_embed(interaction)
 
@@ -400,6 +518,36 @@ class WelcomerColor(discord.ui.Modal):
             return
         async with aiosqlite.connect(welcomer) as db:
             await db.execute("UPDATE wlcmer SET color = ? WHERE guild_id = ?", (color, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
+
+class LeaveChannel(discord.ui.View):
+    def __init__(self, bot) -> None:
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    @discord.ui.select(cls=ChannelSelect, placeholder="Select a channel", custom_id="leave_channel_select", min_values=1, max_values=1, channel_types=[discord.ChannelType.text])
+    async def welcomer_channel_select(self, interaction: discord.Interaction, select: list[AppCommandChannel]) -> None:
+        channel = interaction.guild.get_channel(select.values[0].id)
+        bot_permissions = channel.permissions_for(interaction.guild.me)
+        if not bot_permissions.send_messages:
+            embed = discord.Embed(title="Permission Error", description=f"I don't have permission to send messages in {channel.mention}. Please check my permissions.", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        async with aiosqlite.connect(welcomer) as db:
+            await db.execute("UPDATE leaver SET channel_id = ? WHERE guild_id = ?", (channel.id, interaction.guild_id))
+            await db.commit()
+            await Welcomer(self.bot).welcomer_embed(interaction)
+
+class LeaveMessage(discord.ui.Modal):
+    def __init__(self, bot) -> None:
+        super().__init__(title="Custom Leave Message" , timeout=None)
+        self.bot = bot
+    message = discord.ui.TextInput(label="Message", style=discord.TextStyle.long, placeholder="Enter the message you want to send", required=True, max_length=2000)
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        message = self.message.value
+        async with aiosqlite.connect(welcomer) as db:
+            await db.execute("UPDATE leaver SET message = ? WHERE guild_id = ?", (message, interaction.guild_id))
             await db.commit()
             await Welcomer(self.bot).welcomer_embed(interaction)
                     
