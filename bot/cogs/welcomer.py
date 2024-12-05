@@ -91,12 +91,14 @@ class Welcomer(commands.GroupCog, name="welcomer"):
             data = await cursor.fetchone()
             cursor = await db.execute("SELECT channel_id, message FROM wlcmer WHERE guild_id = ?", (member.guild.id,))
             data2 = await cursor.fetchone()
+            if not data:
+                return
             if data2[0] == 0:
                 return
             if data[0] == 0:
                 return
             leave_channel = self.bot.get_channel(data[0])
-            if data[1] == 0:
+            if data[1] == "0":
                 await leave_channel.send(f"{member.name} has left the server!")
             else:
                 await leave_channel.send(data[1].format(_mention=member.mention, _name=member.name))
