@@ -43,7 +43,7 @@ class TicTacToeViewAccept(discord.ui.View):
             turn1 = self.opponent
             turn2 = self.user
         embed = discord.Embed(title="Tic-Tac-Toe", description=f"{self.opponent.mention} has accepted your challenge to a game of tic-tac-toe! Let the game begin!", color=discord.Color.green())
-        embed.add_field(name="Instructions", value="To make a move, click on the corresponding square. The first player to get tree in a row wins!")
+        embed.add_field(name="Instructions", value="To make a move, click on the corresponding square. The first player to get three in a row wins!")
         embed.add_field(name="Player Turn", value=f"{self.turn.mention}'s turn")
         view = TicTacToeView(turn1, turn2, self.turn, self.opponent)
         await interaction.response.edit_message(embed=embed, view=view)
