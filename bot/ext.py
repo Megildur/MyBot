@@ -69,5 +69,7 @@ class Extensions(commands.Cog):
         if failed:
             await ctx.send(f'Failed to load cogs: {", ".join(failed)}')
 
+
+
 async def setup(bot) -> None:
     await bot.add_cog(Extensions(bot))
